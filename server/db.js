@@ -227,9 +227,21 @@ export const validationTests = {
     return all.find(t => t.testId === testId);
   },
   
+  getByCampaign(campaignId) {
+    const all = this.getAll();
+    return all.filter(t => t.campaignId === campaignId);
+  },
+  
+  getHistory(testId) {
+    const history = readData('validation-history.json');
+    return history.filter(h => h.testId === testId).sort((a, b) => 
+      new Date(b.testedAt) - new Date(a.testedAt)
+    );
+  },
+  
   save(testId, data) {
     const all = this.getAll();
-    const index = all.findIndex(t => t.testId === testId);
+    const index = all.findIndex(t => t.testId === testId && t.campaignId === data.campaignId);
     
     const record = {
       testId,
@@ -246,6 +258,17 @@ export const validationTests = {
     }
     
     writeData('validation-tests.json', all);
+    
+    // Also save to history
+    const history = readData('validation-history.json');
+    history.push({
+      id: generateId(),
+      testId,
+      ...data,
+      savedAt: new Date().toISOString()
+    });
+    writeData('validation-history.json', history);
+    
     return record;
   },
   
@@ -254,6 +277,64 @@ export const validationTests = {
     all = all.filter(t => t.testId !== testId);
     writeData('validation-tests.json', all);
     return true;
+  }
+};
+
+// ============ VALIDATION CAMPAIGNS ============
+
+export const validationCampaigns = {
+  getAll() {
+    return readData('validation-campaigns.json');
+  },
+  
+  getById(id) {
+    const all = this.getAll();
+    return all.find(c => c.id === id);
+  },
+  
+  create(campaign) {
+    const all = this.getAll();
+    const newCampaign = {
+      id: generateId(),
+      ...campaign,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    all.push(newCampaign);
+    writeData('validation-campaigns.json', all);
+    return newCampaign;
+  },
+  
+  update(id, updates) {
+    const all = this.getAll();
+    const index = all.findIndex(c => c.id === id);
+    if (index === -1) return null;
+    
+    all[index] = {
+      ...all[index],
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('validation-campaigns.json', all);
+    return all[index];
+  },
+  
+  delete(id) {
+    let all = this.getAll();
+    all = all.filter(c => c.id !== id);
+    writeData('validation-campaigns.json', all);
+    return true;
+  },
+  
+  getStats(campaignId) {
+    const tests = validationTests.getByCampaign(campaignId);
+    return {
+      total: tests.length,
+      passed: tests.filter(t => t.logCaptured && t.detectionFired).length,
+      partial: tests.filter(t => t.logCaptured && !t.detectionFired).length,
+      failed: tests.filter(t => !t.logCaptured).length
+    };
   }
 };
 

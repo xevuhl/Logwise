@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sources, assessments, auditLog, savedViews, validationTests } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -279,6 +279,103 @@ app.delete('/api/validation/:testId', (req, res) => {
   } catch (error) {
     console.error('Error deleting validation test:', error);
     res.status(500).json({ error: 'Failed to delete validation test' });
+  }
+});
+
+// Get test history
+app.get('/api/validation/:testId/history', (req, res) => {
+  try {
+    const history = validationTests.getHistory(req.params.testId);
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching test history:', error);
+    res.status(500).json({ error: 'Failed to fetch test history' });
+  }
+});
+
+// ============ VALIDATION CAMPAIGNS API ============
+
+// Get all campaigns
+app.get('/api/campaigns', (req, res) => {
+  try {
+    const allCampaigns = validationCampaigns.getAll();
+    // Add stats to each campaign
+    const campaignsWithStats = allCampaigns.map(campaign => ({
+      ...campaign,
+      stats: validationCampaigns.getStats(campaign.id)
+    }));
+    res.json(campaignsWithStats);
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    res.status(500).json({ error: 'Failed to fetch campaigns' });
+  }
+});
+
+// Get single campaign
+app.get('/api/campaigns/:id', (req, res) => {
+  try {
+    const campaign = validationCampaigns.getById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    campaign.stats = validationCampaigns.getStats(campaign.id);
+    res.json(campaign);
+  } catch (error) {
+    console.error('Error fetching campaign:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign' });
+  }
+});
+
+// Create campaign
+app.post('/api/campaigns', (req, res) => {
+  try {
+    const newCampaign = validationCampaigns.create(req.body);
+    auditLog.add('campaign_created', req.body.name);
+    res.status(201).json(newCampaign);
+  } catch (error) {
+    console.error('Error creating campaign:', error);
+    res.status(500).json({ error: 'Failed to create campaign' });
+  }
+});
+
+// Update campaign
+app.put('/api/campaigns/:id', (req, res) => {
+  try {
+    const updated = validationCampaigns.update(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating campaign:', error);
+    res.status(500).json({ error: 'Failed to update campaign' });
+  }
+});
+
+// Delete campaign
+app.delete('/api/campaigns/:id', (req, res) => {
+  try {
+    const existing = validationCampaigns.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    validationCampaigns.delete(req.params.id);
+    auditLog.add('campaign_deleted', existing.name);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting campaign:', error);
+    res.status(500).json({ error: 'Failed to delete campaign' });
+  }
+});
+
+// Get campaign tests
+app.get('/api/campaigns/:id/tests', (req, res) => {
+  try {
+    const tests = validationTests.getByCampaign(req.params.id);
+    res.json(tests);
+  } catch (error) {
+    console.error('Error fetching campaign tests:', error);
+    res.status(500).json({ error: 'Failed to fetch campaign tests' });
   }
 });
 

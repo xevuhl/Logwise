@@ -111,4 +111,30 @@ export const validationAPI = {
   delete: (testId) => fetchAPI(`/validation/${testId}`, {
     method: 'DELETE',
   }),
+  
+  getHistory: (testId) => fetchAPI(`/validation/${testId}/history`),
+};
+
+// ============ VALIDATION CAMPAIGNS ============
+
+export const campaignsAPI = {
+  getAll: () => fetchAPI('/campaigns'),
+  
+  getById: (id) => fetchAPI(`/campaigns/${id}`),
+  
+  create: (campaign) => fetchAPI('/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(campaign),
+  }),
+  
+  update: (id, campaign) => fetchAPI(`/campaigns/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(campaign),
+  }),
+  
+  delete: (id) => fetchAPI(`/campaigns/${id}`, {
+    method: 'DELETE',
+  }),
+  
+  getTests: (id) => fetchAPI(`/campaigns/${id}/tests`),
 };

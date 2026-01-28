@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -24,6 +24,7 @@ function App() {
   const [sources, setSources] = useState([]);
   const [assessments, setAssessments] = useState({});
   const [validationTests, setValidationTests] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,10 +45,11 @@ function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [sourcesData, assessmentsData, validationData, auditData, viewsData] = await Promise.all([
+        const [sourcesData, assessmentsData, validationData, campaignsData, auditData, viewsData] = await Promise.all([
           sourcesAPI.getAll(),
           assessmentsAPI.getAll(),
           validationAPI.getAll(),
+          campaignsAPI.getAll(),
           auditAPI.getAll(),
           viewsAPI.getAll(),
         ]);
@@ -61,6 +63,7 @@ function App() {
         setAssessments(assessmentsObj);
         
         setValidationTests(validationData);
+        setCampaigns(campaignsData);
         setAuditLog(auditData);
         setSavedViews(viewsData);
         setError(null);
@@ -172,7 +175,7 @@ function App() {
     try {
       const saved = await validationAPI.save(testId, result);
       setValidationTests(prev => {
-        const existing = prev.findIndex(t => t.testId === testId);
+        const existing = prev.findIndex(t => t.testId === testId && t.campaignId === result.campaignId);
         if (existing >= 0) {
           const updated = [...prev];
           updated[existing] = saved;
@@ -180,11 +183,51 @@ function App() {
         }
         return [...prev, saved];
       });
+      // Refresh campaigns to update stats
+      const campaignsData = await campaignsAPI.getAll();
+      setCampaigns(campaignsData);
       // Refresh audit log
       const auditData = await auditAPI.getAll();
       setAuditLog(auditData);
     } catch (err) {
       console.error('Failed to save validation test:', err);
+      throw err;
+    }
+  }, []);
+
+  // Campaign operations
+  const handleCreateCampaign = useCallback(async (campaign) => {
+    try {
+      const newCampaign = await campaignsAPI.create(campaign);
+      setCampaigns(prev => [...prev, newCampaign]);
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return newCampaign;
+    } catch (err) {
+      console.error('Failed to create campaign:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleUpdateCampaign = useCallback(async (id, updates) => {
+    try {
+      const updated = await campaignsAPI.update(id, updates);
+      setCampaigns(prev => prev.map(c => c.id === id ? { ...updated, stats: c.stats } : c));
+      return updated;
+    } catch (err) {
+      console.error('Failed to update campaign:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleDeleteCampaign = useCallback(async (id) => {
+    try {
+      await campaignsAPI.delete(id);
+      setCampaigns(prev => prev.filter(c => c.id !== id));
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+    } catch (err) {
+      console.error('Failed to delete campaign:', err);
       throw err;
     }
   }, []);
@@ -316,6 +359,10 @@ function App() {
               validationTests={validationTests}
               onSaveResult={handleSaveValidation}
               sources={sources}
+              campaigns={campaigns}
+              onCreateCampaign={handleCreateCampaign}
+              onUpdateCampaign={handleUpdateCampaign}
+              onDeleteCampaign={handleDeleteCampaign}
             />
           )}
           
