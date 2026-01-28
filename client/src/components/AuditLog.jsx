@@ -50,7 +50,7 @@ function AuditLog({ entries }) {
               placeholder="Search audit log..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -58,7 +58,7 @@ function AuditLog({ entries }) {
         <select
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
-          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">All Actions</option>
           {actions.map(action => (
@@ -75,7 +75,7 @@ function AuditLog({ entries }) {
       {/* Audit entries */}
       <div className="space-y-6">
         {Object.entries(groupedEntries).length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
             <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <div className="text-gray-500 dark:text-gray-400">No audit entries found</div>
           </div>
@@ -87,7 +87,7 @@ function AuditLog({ entries }) {
                 <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
                   {formatDate(date)}
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
                   {dateEntries
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     .map(entry => (
@@ -141,32 +141,32 @@ function ActionIcon({ action }) {
   switch (action) {
     case 'created':
       return (
-        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded">
           <Edit2 className={`${iconClass} text-green-600 dark:text-green-400`} />
         </div>
       );
     case 'updated':
     case 'status_changed':
       return (
-        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
           <RefreshCw className={`${iconClass} text-blue-600 dark:text-blue-400`} />
         </div>
       );
     case 'deleted':
       return (
-        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded">
           <Trash2 className={`${iconClass} text-red-600 dark:text-red-400`} />
         </div>
       );
     case 'imported':
       return (
-        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded">
           <Clock className={`${iconClass} text-purple-600 dark:text-purple-400`} />
         </div>
       );
     default:
       return (
-        <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded">
           <Clock className={`${iconClass} text-gray-600 dark:text-gray-400`} />
         </div>
       );

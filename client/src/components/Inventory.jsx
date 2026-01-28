@@ -55,14 +55,14 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         <div className="flex gap-2">
           <button
             onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <Upload className="h-4 w-4" />
             Import
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add Source
@@ -80,7 +80,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
               placeholder="Search sources..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -88,7 +88,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">All Statuses</option>
           {statusOptions.map(opt => (
@@ -99,7 +99,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">All Categories</option>
           {allCategories.map(cat => (
@@ -114,7 +114,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       </div>
 
       {/* Sources list */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {filteredSources.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-gray-400 dark:text-gray-500 mb-2">No sources found</div>
@@ -227,13 +227,13 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
         <div className="flex items-center gap-2">
           <button
             onClick={onEdit}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           >
             <Edit2 className="h-4 w-4" />
           </button>
           <button
             onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -266,7 +266,7 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
               )}
 
               {/* Assessment Coverage */}
-              <div className="md:col-span-2 mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div className="md:col-span-2 mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Assessment Coverage ({assessmentCoverage.length} questions)
                 </div>
@@ -302,7 +302,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -311,7 +311,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           <select
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             {allCategories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -324,7 +324,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           <select
             value={formData.status}
             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             {statusOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -339,7 +339,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
             value={formData.integration || ''}
             onChange={(e) => setFormData({ ...formData, integration: e.target.value })}
             placeholder="e.g., Splunk, Sentinel"
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -348,7 +348,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           <select
             value={formData.criticality || ''}
             onChange={(e) => setFormData({ ...formData, criticality: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Select...</option>
             <option value="Critical">Critical</option>
@@ -365,7 +365,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
             value={formData.owner || ''}
             onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
             placeholder="Team or person responsible"
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
       </div>
@@ -376,7 +376,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           value={formData.notes || ''}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           rows={3}
-          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
       
@@ -384,14 +384,14 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
         <button
           onClick={onSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
         >
           <Save className="h-4 w-4" />
           {saving ? 'Saving...' : 'Save'}
         </button>
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
         >
           Cancel
         </button>
@@ -456,7 +456,7 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             required
             autoFocus
           />
@@ -468,7 +468,7 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {allCategories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -481,7 +481,7 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {statusOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -494,14 +494,14 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || !formData.name.trim()}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Adding...' : 'Add Source'}
           </button>
@@ -561,7 +561,7 @@ function ImportModal({ onClose, onImport }) {
             onChange={(e) => setJsonText(e.target.value)}
             placeholder='[{"name": "Firewall Logs", "category": "Network", "status": "collected"}, ...]'
             rows={8}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -576,7 +576,7 @@ function ImportModal({ onClose, onImport }) {
         </label>
         
         {error && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
             {error}
           </div>
         )}
@@ -584,14 +584,14 @@ function ImportModal({ onClose, onImport }) {
         <div className="flex justify-end gap-2 pt-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleImport}
             disabled={importing || !jsonText.trim()}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             {importing ? 'Importing...' : 'Import'}
           </button>
@@ -627,14 +627,14 @@ function DeleteConfirmModal({ source, onClose, onConfirm }) {
         <div className="flex justify-end gap-2 pt-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 transition-colors"
           >
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
@@ -647,7 +647,7 @@ function DeleteConfirmModal({ source, onClose, onConfirm }) {
 function Modal({ children, onClose, title }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-slide-in">
+      <div className="bg-white dark:bg-gray-800 rounded shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-slide-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
           <button

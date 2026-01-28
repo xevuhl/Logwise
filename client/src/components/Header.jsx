@@ -6,7 +6,7 @@ function Header({ darkMode, setDarkMode, onExport }) {
       <div className="px-6 py-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded">
             <FileText className="h-6 w-6 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
@@ -19,7 +19,7 @@ function Header({ darkMode, setDarkMode, onExport }) {
         <div className="flex items-center gap-2">
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             title="Export Data"
           >
             <Download className="h-4 w-4" />
@@ -28,7 +28,7 @@ function Header({ darkMode, setDarkMode, onExport }) {
           
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}

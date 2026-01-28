@@ -24,7 +24,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
       {/* Toggle button */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 p-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        className="absolute -right-3 top-6 p-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >
         {collapsed ? (
           <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -43,7 +43,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded transition-colors ${
                 isActive
                   ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'

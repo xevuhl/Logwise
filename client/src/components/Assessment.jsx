@@ -80,16 +80,16 @@ function Assessment({ assessments, onSave, sources }) {
       </div>
 
       {/* Progress bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="flex justify-between text-sm mb-2">
           <span className="text-gray-600 dark:text-gray-400">Overall Progress</span>
           <span className="font-medium text-gray-900 dark:text-white">
             {totalAnswered}/{assessmentQuestions.length}
           </span>
         </div>
-        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
           <div 
-            className="h-full bg-primary-500 rounded-full transition-all duration-500"
+            className="h-full bg-primary-500 rounded-sm transition-all duration-500"
             style={{ width: `${(totalAnswered / assessmentQuestions.length) * 100}%` }}
           />
         </div>
@@ -104,7 +104,7 @@ function Assessment({ assessments, onSave, sources }) {
           return (
             <div 
               key={category}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+              className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
               {/* Category header */}
               <button
@@ -151,7 +151,7 @@ function Assessment({ assessments, onSave, sources }) {
                                   key={option.value}
                                   onClick={() => handleResponse(question.id, option.value)}
                                   disabled={saving === question.id}
-                                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
                                     response?.response === option.value
                                       ? getSelectedClass(option.value)
                                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -168,14 +168,14 @@ function Assessment({ assessments, onSave, sources }) {
                                 placeholder="Add notes or evidence..."
                                 value={response?.notes || ''}
                                 onChange={(e) => handleNotes(question.id, e.target.value)}
-                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 rows={2}
                               />
                             </div>
 
                             {/* Related sources */}
                             {relatedSources.length > 0 && (
-                              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
                                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
                                   <Link className="h-4 w-4" />
                                   Related Log Sources
