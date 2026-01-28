@@ -283,7 +283,7 @@ function App() {
           stats={stats}
         />
         
-        <main className={`flex-1 p-6 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+        <main className={`flex-1 p-4 pt-3 transition-all duration-300 ${sidebarCollapsed ? 'ml-14' : 'ml-52'}`}>
           {activeTab === 'dashboard' && (
             <Dashboard 
               stats={stats} 

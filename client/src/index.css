@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base font size - slightly smaller for a tighter look */
+html {
+  font-size: 14px;
+}
+
+/* Form input base styles */
+input, select, textarea {
+  font-size: 0.8125rem; /* 13px */
+}
+
 /* Custom scrollbar for dark mode */
 .dark ::-webkit-scrollbar {
   width: 8px;
@@ -77,7 +87,7 @@
 
 /* Status badge utilities */
 .status-badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium;
+  @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium;
 }
 
 .status-collected {

@@ -91,17 +91,17 @@ function Validation({ validationTests, onRunTest, onSaveResult, sources }) {
   }, [validationTests]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Detection Validation</h2>
-          <p className="text-gray-600 dark:text-gray-400">Purple team testing to validate log capture and detection efficacy</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detection Validation</h2>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Purple team testing to validate log capture and detection efficacy</p>
         </div>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <StatCard 
           title="Total Tests" 
           value={stats.total} 
@@ -143,16 +143,16 @@ function Validation({ validationTests, onRunTest, onSaveResult, sources }) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 min-w-[180px]">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <input
               type="text"
               placeholder="Search tests by name or technique..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-8 pr-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -160,7 +160,7 @@ function Validation({ validationTests, onRunTest, onSaveResult, sources }) {
         <select
           value={tacticFilter}
           onChange={(e) => setTacticFilter(e.target.value)}
-          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">All Tactics</option>
           {tactics.map(tactic => (
@@ -171,7 +171,7 @@ function Validation({ validationTests, onRunTest, onSaveResult, sources }) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">All Statuses</option>
           <option value="passed">Passed</option>
@@ -182,12 +182,12 @@ function Validation({ validationTests, onRunTest, onSaveResult, sources }) {
       </div>
 
       {/* Results count */}
-      <div className="text-sm text-gray-600 dark:text-gray-400">
+      <div className="text-xs text-gray-600 dark:text-gray-400">
         Showing {filteredTests.length} of {validationTestLibrary.length} tests
       </div>
 
       {/* Tests grouped by tactic */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {Object.entries(groupedTests).map(([tactic, tests]) => (
           <TacticGroup
             key={tactic}
@@ -232,16 +232,16 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded ${colorClasses[color]}`}>
-          <Icon className="h-5 w-5" />
+    <div className="bg-white dark:bg-gray-800 rounded p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-2.5">
+        <div className={`p-1.5 rounded ${colorClasses[color]}`}>
+          <Icon className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">{title}</p>
           {subtitle && (
-            <p className="text-xs text-gray-400 dark:text-gray-500">{subtitle}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>
           )}
         </div>
       </div>
@@ -265,31 +265,31 @@ function TacticGroup({ tactic, tests, expandedTest, setExpandedTest, onRunTest, 
       {/* Tactic header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {collapsed ? (
-            <ChevronRight className="h-5 w-5 text-gray-400" />
+            <ChevronRight className="h-4 w-4 text-gray-400" />
           ) : (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-400" />
           )}
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{tactic}</h3>
-          <div className="flex gap-2">
-            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{tactic}</h3>
+          <div className="flex gap-1.5">
+            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] text-gray-600 dark:text-gray-400">
               {tacticStats.total} tests
             </span>
             {tacticStats.passed > 0 && (
-              <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-600 dark:text-green-400">
+              <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-[10px] text-green-600 dark:text-green-400">
                 {tacticStats.passed} passed
               </span>
             )}
             {tacticStats.partial > 0 && (
-              <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 rounded text-xs text-yellow-600 dark:text-yellow-400">
+              <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 rounded text-[10px] text-yellow-600 dark:text-yellow-400">
                 {tacticStats.partial} partial
               </span>
             )}
             {tacticStats.failed > 0 && (
-              <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-600 dark:text-red-400">
+              <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-[10px] text-red-600 dark:text-red-400">
                 {tacticStats.failed} failed
               </span>
             )}
@@ -326,7 +326,7 @@ function TacticProgressBar({ stats }) {
   const failedPct = (stats.failed / total) * 100;
 
   return (
-    <div className="w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden flex">
+    <div className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden flex">
       <div className="bg-green-500 h-full" style={{ width: `${passedPct}%` }} />
       <div className="bg-yellow-500 h-full" style={{ width: `${partialPct}%` }} />
       <div className="bg-red-500 h-full" style={{ width: `${failedPct}%` }} />
@@ -337,28 +337,28 @@ function TacticProgressBar({ stats }) {
 function TestRow({ test, isExpanded, onToggle, onRunTest, sources }) {
   const getStatusIcon = () => {
     if (!test.result) {
-      return <Clock className="h-5 w-5 text-gray-400" />;
+      return <Clock className="h-4 w-4 text-gray-400" />;
     }
     if (test.result.logCaptured && test.result.detectionFired) {
-      return <CheckCircle className="h-5 w-5 text-green-500" />;
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
     }
     if (test.result.logCaptured) {
-      return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
     }
-    return <XCircle className="h-5 w-5 text-red-500" />;
+    return <XCircle className="h-4 w-4 text-red-500" />;
   };
 
   const getStatusBadge = () => {
     if (!test.result) {
-      return <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">Not Tested</span>;
+      return <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] text-gray-600 dark:text-gray-400">Not Tested</span>;
     }
     if (test.result.logCaptured && test.result.detectionFired) {
-      return <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-600 dark:text-green-400">Passed</span>;
+      return <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-[10px] text-green-600 dark:text-green-400">Passed</span>;
     }
     if (test.result.logCaptured) {
-      return <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 rounded text-xs text-yellow-600 dark:text-yellow-400">Log Only</span>;
+      return <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 rounded text-[10px] text-yellow-600 dark:text-yellow-400">Log Only</span>;
     }
-    return <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-600 dark:text-red-400">Failed</span>;
+    return <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-[10px] text-red-600 dark:text-red-400">Failed</span>;
   };
 
   // Check which expected sources are in inventory
@@ -373,51 +373,51 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, sources }) {
   return (
     <div className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
       {/* Main row */}
-      <div className="px-6 py-4 flex items-center gap-4">
+      <div className="px-4 py-2.5 flex items-center gap-3">
         <button onClick={onToggle} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-          {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
         
         {getStatusIcon()}
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900 dark:text-white">{test.name}</span>
-            <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded text-xs font-mono text-purple-700 dark:text-purple-400">
+            <span className="text-sm font-medium text-gray-900 dark:text-white">{test.name}</span>
+            <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded text-[10px] font-mono text-purple-700 dark:text-purple-400">
               {test.technique}
             </span>
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">{test.techniqueName}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">{test.techniqueName}</div>
         </div>
         
         {getStatusBadge()}
         
         <button
           onClick={() => onRunTest(test)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
         >
-          <Play className="h-4 w-4" />
+          <Play className="h-3.5 w-3.5" />
           {test.result ? 'Re-test' : 'Run Test'}
         </button>
       </div>
 
       {/* Expanded details */}
       {isExpanded && (
-        <div className="px-6 pb-4 pl-16 border-t border-gray-100 dark:border-gray-700 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="px-4 pb-3 pl-12 border-t border-gray-100 dark:border-gray-700 pt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Description</div>
-              <div className="text-sm text-gray-900 dark:text-white">{test.description}</div>
+              <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Description</div>
+              <div className="text-xs text-gray-900 dark:text-white">{test.description}</div>
             </div>
             
             <div>
-              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Test Procedure</div>
-              <div className="text-sm text-gray-900 dark:text-white">{test.testProcedure}</div>
+              <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Test Procedure</div>
+              <div className="text-xs text-gray-900 dark:text-white">{test.testProcedure}</div>
             </div>
             
             <div>
-              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Expected Log Sources</div>
-              <div className="flex flex-wrap gap-2 mt-1">
+              <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Expected Log Sources</div>
+              <div className="flex flex-wrap gap-1.5 mt-1">
                 {sourceMatches.map(({ expected, match, collected }) => (
                   <span 
                     key={expected}

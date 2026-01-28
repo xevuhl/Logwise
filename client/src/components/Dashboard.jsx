@@ -27,15 +27,15 @@ function Dashboard({ stats, sources, assessments }) {
   }, {});
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       {/* Page header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
-        <p className="text-gray-600 dark:text-gray-400">Overview of your logging program status</p>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Dashboard</h2>
+        <p className="text-xs text-gray-600 dark:text-gray-400">Overview of your logging program status</p>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           title="Total Sources"
           value={stats.totalSources}
@@ -66,11 +66,11 @@ function Dashboard({ stats, sources, assessments }) {
       </div>
 
       {/* Two-column layout for charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Status breakdown */}
-        <div className="bg-white dark:bg-gray-800 rounded p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Collection Status</h3>
-          <div className="space-y-4">
+        <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Collection Status</h3>
+          <div className="space-y-3">
             <StatusBar label="Collected" count={stats.collected} total={stats.totalSources} color="green" />
             <StatusBar label="Partial" count={stats.partial} total={stats.totalSources} color="yellow" />
             <StatusBar label="Planned" count={stats.planned} total={stats.totalSources} color="blue" />
@@ -80,19 +80,19 @@ function Dashboard({ stats, sources, assessments }) {
         </div>
 
         {/* Assessment by category */}
-        <div className="bg-white dark:bg-gray-800 rounded p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Assessment by Category</h3>
-          <div className="space-y-4">
+        <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Assessment by Category</h3>
+          <div className="space-y-3">
             {Object.entries(assessmentByCategory).map(([category, data]) => {
               const maxScore = data.total * 2;
               const percentage = maxScore > 0 ? Math.round((data.score / maxScore) * 100) : 0;
               return (
                 <div key={category}>
-                  <div className="flex justify-between text-sm mb-1">
+                  <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-700 dark:text-gray-300">{category}</span>
                     <span className="text-gray-500 dark:text-gray-400">{percentage}%</span>
                   </div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
                     <div 
                       className="h-full bg-primary-500 rounded-sm transition-all duration-500"
                       style={{ width: `${percentage}%` }}
@@ -106,16 +106,16 @@ function Dashboard({ stats, sources, assessments }) {
       </div>
 
       {/* Category breakdown */}
-      <div className="bg-white dark:bg-gray-800 rounded p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Sources by Category</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Sources by Category</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {Object.entries(stats.byCategory).sort((a, b) => b[1] - a[1]).map(([category, count]) => (
             <div 
               key={category}
-              className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded text-center"
+              className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded text-center"
             >
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{count}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">{category}</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">{count}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">{category}</div>
             </div>
           ))}
         </div>
@@ -123,16 +123,16 @@ function Dashboard({ stats, sources, assessments }) {
 
       {/* Recent sources (quick preview) */}
       {sources.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recently Updated Sources</h3>
+        <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recently Updated Sources</h3>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th className="pb-3 font-medium">Name</th>
-                  <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Last Updated</th>
+                <tr className="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                  <th className="pb-2 font-medium">Name</th>
+                  <th className="pb-2 font-medium">Category</th>
+                  <th className="pb-2 font-medium">Status</th>
+                  <th className="pb-2 font-medium">Last Updated</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -141,12 +141,12 @@ function Dashboard({ stats, sources, assessments }) {
                   .slice(0, 5)
                   .map(source => (
                     <tr key={source.id} className="table-row-hover">
-                      <td className="py-3 text-gray-900 dark:text-white font-medium">{source.name}</td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">{source.category}</td>
-                      <td className="py-3">
+                      <td className="py-2 text-gray-900 dark:text-white font-medium">{source.name}</td>
+                      <td className="py-2 text-gray-600 dark:text-gray-400">{source.category}</td>
+                      <td className="py-2">
                         <StatusBadge status={source.status} />
                       </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400 text-sm">
+                      <td className="py-2 text-gray-600 dark:text-gray-400 text-xs">
                         {new Date(source.updatedAt).toLocaleDateString()}
                       </td>
                     </tr>
@@ -169,17 +169,17 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
           {subtitle && (
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{subtitle}</p>
           )}
         </div>
-        <div className={`p-3 rounded ${colorClasses[color]}`}>
-          <Icon className="h-6 w-6" />
+        <div className={`p-2 rounded ${colorClasses[color]}`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </div>
@@ -199,11 +199,11 @@ function StatusBar({ label, count, total, color }) {
 
   return (
     <div>
-      <div className="flex justify-between text-sm mb-1">
+      <div className="flex justify-between text-xs mb-1">
         <span className="text-gray-700 dark:text-gray-300">{label}</span>
         <span className="text-gray-500 dark:text-gray-400">{count}</span>
       </div>
-      <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
+      <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
         <div 
           className={`h-full ${colorClasses[color]} rounded-sm transition-all duration-500`}
           style={{ width: `${percentage}%` }}
