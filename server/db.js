@@ -1,0 +1,218 @@
+﻿import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Data directory
+const DATA_DIR = path.join(__dirname, '..', 'data');
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Helper to read/write JSON files
+function readData(filename) {
+  const filepath = path.join(DATA_DIR, filename);
+  if (!fs.existsSync(filepath)) {
+    return [];
+  }
+  try {
+    const data = fs.readFileSync(filepath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+function writeData(filename, data) {
+  const filepath = path.join(DATA_DIR, filename);
+  fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+// Generate unique ID
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// ============ LOG SOURCES ============
+
+export const sources = {
+  getAll() {
+    return readData('sources.json');
+  },
+  
+  getById(id) {
+    const all = this.getAll();
+    return all.find(s => s.id === id);
+  },
+  
+  create(source) {
+    const all = this.getAll();
+    const newSource = {
+      id: generateId(),
+      ...source,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sortOrder: all.length
+    };
+    all.push(newSource);
+    writeData('sources.json', all);
+    return newSource;
+  },
+  
+  update(id, updates) {
+    const all = this.getAll();
+    const index = all.findIndex(s => s.id === id);
+    if (index === -1) return null;
+    
+    all[index] = {
+      ...all[index],
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('sources.json', all);
+    return all[index];
+  },
+  
+  delete(id) {
+    let all = this.getAll();
+    all = all.filter(s => s.id !== id);
+    writeData('sources.json', all);
+    return true;
+  },
+  
+  bulkCreate(sources) {
+    const all = this.getAll();
+    const newSources = sources.map((source, i) => ({
+      id: generateId(),
+      ...source,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sortOrder: all.length + i
+    }));
+    writeData('sources.json', [...all, ...newSources]);
+    return newSources;
+  },
+  
+  updateOrder(orderedIds) {
+    const all = this.getAll();
+    orderedIds.forEach((id, index) => {
+      const source = all.find(s => s.id === id);
+      if (source) source.sortOrder = index;
+    });
+    writeData('sources.json', all);
+    return true;
+  }
+};
+
+// ============ ASSESSMENTS ============
+
+export const assessments = {
+  getAll() {
+    return readData('assessments.json');
+  },
+  
+  getByQuestionId(questionId) {
+    const all = this.getAll();
+    return all.find(a => a.questionId === questionId);
+  },
+  
+  save(questionId, data) {
+    const all = this.getAll();
+    const index = all.findIndex(a => a.questionId === questionId);
+    
+    const record = {
+      questionId,
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (index === -1) {
+      record.createdAt = new Date().toISOString();
+      all.push(record);
+    } else {
+      all[index] = { ...all[index], ...record };
+    }
+    
+    writeData('assessments.json', all);
+    return record;
+  },
+  
+  saveAll(assessments) {
+    const all = this.getAll();
+    
+    assessments.forEach(({ questionId, ...data }) => {
+      const index = all.findIndex(a => a.questionId === questionId);
+      const record = {
+        questionId,
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (index === -1) {
+        record.createdAt = new Date().toISOString();
+        all.push(record);
+      } else {
+        all[index] = { ...all[index], ...record };
+      }
+    });
+    
+    writeData('assessments.json', all);
+    return all;
+  }
+};
+
+// ============ AUDIT LOG ============
+
+export const auditLog = {
+  getAll() {
+    return readData('audit.json');
+  },
+  
+  add(action, sourceName, details = null) {
+    const all = this.getAll();
+    const entry = {
+      id: generateId(),
+      action,
+      sourceName,
+      details: details ? JSON.stringify(details) : null,
+      timestamp: new Date().toISOString()
+    };
+    all.push(entry);
+    writeData('audit.json', all);
+    return entry;
+  }
+};
+
+// ============ SAVED VIEWS ============
+
+export const savedViews = {
+  getAll() {
+    return readData('views.json');
+  },
+  
+  create(view) {
+    const all = this.getAll();
+    const newView = {
+      id: generateId(),
+      ...view,
+      createdAt: new Date().toISOString()
+    };
+    all.push(newView);
+    writeData('views.json', all);
+    return newView;
+  },
+  
+  delete(id) {
+    let all = this.getAll();
+    all = all.filter(v => v.id !== id);
+    writeData('views.json', all);
+    return true;
+  }
+};
+
+console.log('Data storage initialized at:', DATA_DIR);
