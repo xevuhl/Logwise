@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Filter, Clock, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { Search, Filter, Clock, Edit2, Trash2, RefreshCw, FlaskConical } from 'lucide-react';
 
 function AuditLog({ entries }) {
   const [search, setSearch] = useState('');
@@ -164,6 +164,12 @@ function ActionIcon({ action }) {
           <Clock className={`${iconClass} text-purple-600 dark:text-purple-400`} />
         </div>
       );
+    case 'validation_test':
+      return (
+        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded">
+          <FlaskConical className={`${iconClass} text-indigo-600 dark:text-indigo-400`} />
+        </div>
+      );
     default:
       return (
         <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded">
@@ -180,6 +186,7 @@ function formatAction(action) {
     deleted: 'Deleted',
     status_changed: 'Status Changed',
     imported: 'Imported',
+    validation_test: 'Validation Test',
   };
   return labels[action] || action;
 }

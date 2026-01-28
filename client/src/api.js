@@ -97,3 +97,18 @@ export const viewsAPI = {
 export const exportAPI = {
   getAll: () => fetchAPI('/export'),
 };
+
+// ============ VALIDATION TESTS ============
+
+export const validationAPI = {
+  getAll: () => fetchAPI('/validation'),
+  
+  save: (testId, result) => fetchAPI(`/validation/${testId}`, {
+    method: 'POST',
+    body: JSON.stringify(result),
+  }),
+  
+  delete: (testId) => fetchAPI(`/validation/${testId}`, {
+    method: 'DELETE',
+  }),
+};

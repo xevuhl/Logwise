@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Assessment from './components/Assessment';
 import Inventory from './components/Inventory';
 import AuditLog from './components/AuditLog';
+import Validation from './components/Validation';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
   // Data state
   const [sources, setSources] = useState([]);
   const [assessments, setAssessments] = useState({});
+  const [validationTests, setValidationTests] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +44,10 @@ function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [sourcesData, assessmentsData, auditData, viewsData] = await Promise.all([
+        const [sourcesData, assessmentsData, validationData, auditData, viewsData] = await Promise.all([
           sourcesAPI.getAll(),
           assessmentsAPI.getAll(),
+          validationAPI.getAll(),
           auditAPI.getAll(),
           viewsAPI.getAll(),
         ]);
@@ -57,6 +60,7 @@ function App() {
         });
         setAssessments(assessmentsObj);
         
+        setValidationTests(validationData);
         setAuditLog(auditData);
         setSavedViews(viewsData);
         setError(null);
@@ -80,10 +84,11 @@ function App() {
         return;
       }
 
-      if (e.key === '1') setActiveTab('assessment');
-      if (e.key === '2') setActiveTab('dashboard');
+      if (e.key === '1') setActiveTab('dashboard');
+      if (e.key === '2') setActiveTab('assessment');
       if (e.key === '3') setActiveTab('inventory');
-      if (e.key === '4') setActiveTab('audit');
+      if (e.key === '4') setActiveTab('validation');
+      if (e.key === '5') setActiveTab('audit');
       if (e.key === 'd') setDarkMode(prev => !prev);
     }
 
@@ -158,6 +163,28 @@ function App() {
       }));
     } catch (err) {
       console.error('Failed to save assessment:', err);
+      throw err;
+    }
+  }, []);
+
+  // Validation test operations
+  const handleSaveValidation = useCallback(async (testId, result) => {
+    try {
+      const saved = await validationAPI.save(testId, result);
+      setValidationTests(prev => {
+        const existing = prev.findIndex(t => t.testId === testId);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = saved;
+          return updated;
+        }
+        return [...prev, saved];
+      });
+      // Refresh audit log
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+    } catch (err) {
+      console.error('Failed to save validation test:', err);
       throw err;
     }
   }, []);
@@ -281,6 +308,14 @@ function App() {
               onDelete={handleDeleteSource}
               onBulkImport={handleBulkImport}
               savedViews={savedViews}
+            />
+          )}
+          
+          {activeTab === 'validation' && (
+            <Validation
+              validationTests={validationTests}
+              onSaveResult={handleSaveValidation}
+              sources={sources}
             />
           )}
           

@@ -215,4 +215,46 @@ export const savedViews = {
   }
 };
 
+// ============ VALIDATION TESTS ============
+
+export const validationTests = {
+  getAll() {
+    return readData('validation-tests.json');
+  },
+  
+  getByTestId(testId) {
+    const all = this.getAll();
+    return all.find(t => t.testId === testId);
+  },
+  
+  save(testId, data) {
+    const all = this.getAll();
+    const index = all.findIndex(t => t.testId === testId);
+    
+    const record = {
+      testId,
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (index === -1) {
+      record.id = generateId();
+      record.createdAt = new Date().toISOString();
+      all.push(record);
+    } else {
+      all[index] = { ...all[index], ...record };
+    }
+    
+    writeData('validation-tests.json', all);
+    return record;
+  },
+  
+  delete(testId) {
+    let all = this.getAll();
+    all = all.filter(t => t.testId !== testId);
+    writeData('validation-tests.json', all);
+    return true;
+  }
+};
+
 console.log('Data storage initialized at:', DATA_DIR);

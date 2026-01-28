@@ -4,14 +4,16 @@ import {
   Database, 
   History,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FlaskConical
 } from 'lucide-react';
 
 const navItems = [
-  { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '1' },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortcut: '2' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortcut: '1' },
+  { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '2' },
   { id: 'inventory', label: 'Inventory', icon: Database, shortcut: '3' },
-  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '4' },
+  { id: 'validation', label: 'Validation', icon: FlaskConical, shortcut: '4' },
+  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '5' },
 ];
 
 function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sources, assessments, auditLog, savedViews } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -231,6 +231,7 @@ app.get('/api/export', (req, res) => {
       data: {
         logSources: sources.getAll(),
         assessments: assessments.getAll(),
+        validationTests: validationTests.getAll(),
         auditLog: auditLog.getAll(),
         savedViews: savedViews.getAll()
       }
@@ -239,6 +240,45 @@ app.get('/api/export', (req, res) => {
   } catch (error) {
     console.error('Error exporting data:', error);
     res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+// ============ VALIDATION TESTS API ============
+
+// Get all validation test results
+app.get('/api/validation', (req, res) => {
+  try {
+    const allTests = validationTests.getAll();
+    res.json(allTests);
+  } catch (error) {
+    console.error('Error fetching validation tests:', error);
+    res.status(500).json({ error: 'Failed to fetch validation tests' });
+  }
+});
+
+// Save validation test result
+app.post('/api/validation/:testId', (req, res) => {
+  try {
+    const result = validationTests.save(req.params.testId, req.body);
+    auditLog.add('validation_test', req.params.testId, {
+      logCaptured: req.body.logCaptured,
+      detectionFired: req.body.detectionFired
+    });
+    res.json(result);
+  } catch (error) {
+    console.error('Error saving validation test:', error);
+    res.status(500).json({ error: 'Failed to save validation test' });
+  }
+});
+
+// Delete validation test result
+app.delete('/api/validation/:testId', (req, res) => {
+  try {
+    validationTests.delete(req.params.testId);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting validation test:', error);
+    res.status(500).json({ error: 'Failed to delete validation test' });
   }
 });
 
