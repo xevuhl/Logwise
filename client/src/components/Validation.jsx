@@ -481,6 +481,18 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, sources }) {
                       </div>
                     </div>
                   </div>
+                  {test.result.logSources && test.result.logSources.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Log Sources Used</div>
+                      <div className="flex flex-wrap gap-1">
+                        {test.result.logSources.map(source => (
+                          <span key={source} className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 rounded text-xs text-primary-700 dark:text-primary-400">
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {test.result.notes && (
                     <div className="mt-3">
                       <div className="text-xs text-gray-500 dark:text-gray-400">Notes</div>
@@ -502,11 +514,28 @@ function RunTestModal({ test, onClose, onSave, sources }) {
     logCaptured: test.result?.logCaptured ?? null,
     detectionFired: test.result?.detectionFired ?? null,
     timeToDetect: test.result?.timeToDetect || '',
-    logSource: test.result?.logSource || '',
+    logSources: test.result?.logSources || [],
     detectionRule: test.result?.detectionRule || '',
     notes: test.result?.notes || '',
   });
   const [saving, setSaving] = useState(false);
+
+  // Combine inventory sources with expected sources from test library
+  const availableLogSources = useMemo(() => {
+    const inventorySources = sources.map(s => s.name);
+    const expectedSources = test.expectedLogSources || [];
+    const combined = [...new Set([...inventorySources, ...expectedSources])];
+    return combined.sort();
+  }, [sources, test.expectedLogSources]);
+
+  const handleToggleSource = (sourceName) => {
+    setFormData(prev => ({
+      ...prev,
+      logSources: prev.logSources.includes(sourceName)
+        ? prev.logSources.filter(s => s !== sourceName)
+        : [...prev.logSources, sourceName]
+    }));
+  };
 
   const handleSave = async () => {
     if (formData.logCaptured === null) return;
@@ -618,15 +647,58 @@ function RunTestModal({ test, onClose, onSave, sources }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Log Source Used
+                      Log Source(s) Used
                     </label>
-                    <input
-                      type="text"
-                      value={formData.logSource}
-                      onChange={(e) => setFormData({ ...formData, logSource: e.target.value })}
-                      placeholder="e.g., Sysmon, Windows Security"
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
+                    <div className="max-h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                      {availableLogSources.map(sourceName => {
+                        const isSelected = formData.logSources.includes(sourceName);
+                        const isExpected = test.expectedLogSources?.includes(sourceName);
+                        const inventorySource = sources.find(s => s.name === sourceName);
+                        
+                        return (
+                          <label
+                            key={sourceName}
+                            className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0 ${
+                              isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSource(sourceName)}
+                              className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                            />
+                            <span className={`text-sm flex-1 ${isSelected ? 'text-primary-700 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
+                              {sourceName}
+                            </span>
+                            {isExpected && (
+                              <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded text-xs text-purple-600 dark:text-purple-400">
+                                expected
+                              </span>
+                            )}
+                            {inventorySource && (
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                inventorySource.status === 'collected' 
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                  : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                              }`}>
+                                {inventorySource.status === 'collected' ? 'collected' : inventorySource.status}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                      {availableLogSources.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          No log sources available. Add sources to your inventory.
+                        </div>
+                      )}
+                    </div>
+                    {formData.logSources.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {formData.logSources.length} source(s) selected
+                      </div>
+                    )}
                   </div>
                   
                   <div>

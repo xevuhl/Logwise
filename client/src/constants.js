@@ -376,6 +376,47 @@ export const categoryOptions = [
   'Other',
 ];
 
+// Log type options
+export const logTypeOptions = [
+  { value: 'syslog', label: 'Syslog' },
+  { value: 'windows-event', label: 'Windows Event Log' },
+  { value: 'json', label: 'JSON' },
+  { value: 'cef', label: 'CEF (Common Event Format)' },
+  { value: 'leef', label: 'LEEF (Log Event Extended Format)' },
+  { value: 'csv', label: 'CSV' },
+  { value: 'xml', label: 'XML' },
+  { value: 'netflow', label: 'NetFlow/IPFIX' },
+  { value: 'pcap', label: 'PCAP' },
+  { value: 'api', label: 'API/Webhook' },
+  { value: 'database', label: 'Database Query' },
+  { value: 'file', label: 'Flat File' },
+  { value: 'cloud-native', label: 'Cloud Native' },
+  { value: 'other', label: 'Other' },
+];
+
+// Criticality tier options
+export const criticalityTierOptions = [
+  { value: 'tier-1', label: 'Tier 1 - Critical', description: 'Business critical systems, core security infrastructure' },
+  { value: 'tier-2', label: 'Tier 2 - High', description: 'Important production systems, key applications' },
+  { value: 'tier-3', label: 'Tier 3 - Medium', description: 'Standard business systems' },
+  { value: 'tier-4', label: 'Tier 4 - Low', description: 'Development, test, non-critical systems' },
+];
+
+// Retention period options
+export const retentionOptions = [
+  { value: '7d', label: '7 Days' },
+  { value: '14d', label: '14 Days' },
+  { value: '30d', label: '30 Days' },
+  { value: '60d', label: '60 Days' },
+  { value: '90d', label: '90 Days' },
+  { value: '180d', label: '180 Days (6 months)' },
+  { value: '365d', label: '365 Days (1 year)' },
+  { value: '730d', label: '730 Days (2 years)' },
+  { value: '1825d', label: '5 Years' },
+  { value: '2555d', label: '7 Years' },
+  { value: 'custom', label: 'Custom' },
+];
+
 // Assessment response options
 export const assessmentResponseOptions = [
   { value: 'yes', label: 'Yes', score: 2 },
@@ -386,12 +427,15 @@ export const assessmentResponseOptions = [
 
 // Default columns for the inventory table
 export const defaultColumns = [
-  { id: 'name', label: 'Name', visible: true },
+  { id: 'name', label: 'Source Name', visible: true },
   { id: 'category', label: 'Category', visible: true },
   { id: 'status', label: 'Status', visible: true },
-  { id: 'integration', label: 'Integration', visible: true },
-  { id: 'criticality', label: 'Criticality', visible: true },
-  { id: 'owner', label: 'Owner', visible: false },
+  { id: 'logType', label: 'Log Type', visible: true },
+  { id: 'criticalityTier', label: 'Criticality Tier', visible: true },
+  { id: 'ownerTeam', label: 'Owner Team', visible: true },
+  { id: 'ownerContact', label: 'Owner Contact', visible: false },
+  { id: 'retention', label: 'Retention', visible: false },
+  { id: 'description', label: 'Description', visible: false },
   { id: 'notes', label: 'Notes', visible: false },
   { id: 'lastUpdated', label: 'Last Updated', visible: false },
 ];

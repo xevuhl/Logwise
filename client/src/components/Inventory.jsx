@@ -10,9 +10,14 @@ import {
   Trash2,
   X,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  User,
+  Mail,
+  Clock,
+  Database,
+  Shield
 } from 'lucide-react';
-import { statusOptions, categoryOptions, assessmentQuestions } from '../constants';
+import { statusOptions, categoryOptions, assessmentQuestions, logTypeOptions, criticalityTierOptions, retentionOptions } from '../constants';
 
 function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews }) {
   const [search, setSearch] = useState('');
@@ -30,6 +35,8 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       const matchesSearch = !search || 
         source.name.toLowerCase().includes(search.toLowerCase()) ||
         source.category?.toLowerCase().includes(search.toLowerCase()) ||
+        source.description?.toLowerCase().includes(search.toLowerCase()) ||
+        source.ownerTeam?.toLowerCase().includes(search.toLowerCase()) ||
         source.notes?.toLowerCase().includes(search.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || source.status === statusFilter;
@@ -219,8 +226,20 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
         
         <div className="flex-1 min-w-0">
           <div className="font-medium text-gray-900 dark:text-white truncate">{source.name}</div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">{source.category}</div>
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <span>{source.category}</span>
+            {source.logType && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600">•</span>
+                <span>{logTypeOptions.find(o => o.value === source.logType)?.label || source.logType}</span>
+              </>
+            )}
+          </div>
         </div>
+
+        {source.criticalityTier && (
+          <CriticalityBadge tier={source.criticalityTier} />
+        )}
         
         <StatusBadge status={source.status} />
         
@@ -253,20 +272,52 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
               allCategories={allCategories}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailItem label="Integration" value={source.integration || 'Not specified'} />
-              <DetailItem label="Criticality" value={source.criticality || 'Not specified'} />
-              <DetailItem label="Owner" value={source.owner || 'Not specified'} />
-              <DetailItem label="Last Updated" value={source.updatedAt ? new Date(source.updatedAt).toLocaleString() : 'N/A'} />
+            <div className="space-y-4">
+              {/* Description */}
+              {source.description && (
+                <div className="text-sm text-gray-700 dark:text-gray-300">
+                  {source.description}
+                </div>
+              )}
+
+              {/* Key Details Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <DetailItem label="Log Type" value={logTypeOptions.find(o => o.value === source.logType)?.label || source.logType || 'Not specified'} />
+                <DetailItem label="Criticality Tier" value={criticalityTierOptions.find(o => o.value === source.criticalityTier)?.label || source.criticalityTier || 'Not specified'} />
+                <DetailItem label="Retention" value={retentionOptions.find(o => o.value === source.retention)?.label || source.retention || 'Not specified'} />
+                <DetailItem label="Last Updated" value={source.updatedAt ? new Date(source.updatedAt).toLocaleString() : 'N/A'} />
+              </div>
+
+              {/* Owner Information */}
+              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Ownership</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400" />
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Team</div>
+                      <div className="text-sm text-gray-900 dark:text-white">{source.ownerTeam || 'Not assigned'}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Contact</div>
+                      <div className="text-sm text-gray-900 dark:text-white">{source.ownerContact || 'Not specified'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               {source.notes && (
-                <div className="md:col-span-2">
-                  <DetailItem label="Notes" value={source.notes} />
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                  <div className="text-xs font-medium text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-1">Notes</div>
+                  <div className="text-sm text-yellow-800 dark:text-yellow-300">{source.notes}</div>
                 </div>
               )}
 
               {/* Assessment Coverage */}
-              <div className="md:col-span-2 mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
+              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Assessment Coverage ({assessmentCoverage.length} questions)
                 </div>
@@ -295,28 +346,16 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
 function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategories }) {
   return (
     <div className="space-y-4">
+      {/* Basic Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Name *</label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-          <select
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            {allCategories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
         </div>
         
         <div>
@@ -331,42 +370,102 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
             ))}
           </select>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Integration</label>
-          <input
-            type="text"
-            value={formData.integration || ''}
-            onChange={(e) => setFormData({ ...formData, integration: e.target.value })}
-            placeholder="e.g., Splunk, Sentinel"
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+        <textarea
+          value={formData.description || ''}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={2}
+          placeholder="Brief description of this log source and its purpose"
+          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+
+      {/* Ownership */}
+      <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded space-y-4">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Ownership</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Team</label>
+            <input
+              type="text"
+              value={formData.ownerTeam || ''}
+              onChange={(e) => setFormData({ ...formData, ownerTeam: e.target.value })}
+              placeholder="e.g., Security Operations, Network Team"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Contact</label>
+            <input
+              type="text"
+              value={formData.ownerContact || ''}
+              onChange={(e) => setFormData({ ...formData, ownerContact: e.target.value })}
+              placeholder="e.g., email or Slack channel"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
-        
+      </div>
+
+      {/* Technical Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Criticality</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
           <select
-            value={formData.criticality || ''}
-            onChange={(e) => setFormData({ ...formData, criticality: e.target.value })}
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option value="">Select...</option>
-            <option value="Critical">Critical</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
+            {allCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
           </select>
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner</label>
-          <input
-            type="text"
-            value={formData.owner || ''}
-            onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-            placeholder="Team or person responsible"
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Type</label>
+          <select
+            value={formData.logType || ''}
+            onChange={(e) => setFormData({ ...formData, logType: e.target.value })}
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Select log type...</option>
+            {logTypeOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Criticality Tier</label>
+          <select
+            value={formData.criticalityTier || ''}
+            onChange={(e) => setFormData({ ...formData, criticalityTier: e.target.value })}
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Select criticality...</option>
+            {criticalityTierOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retention Period</label>
+          <select
+            value={formData.retention || ''}
+            onChange={(e) => setFormData({ ...formData, retention: e.target.value })}
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Select retention...</option>
+            {retentionOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
       </div>
       
@@ -376,6 +475,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           value={formData.notes || ''}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           rows={3}
+          placeholder="Additional notes, configuration details, known issues..."
           className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
@@ -422,14 +522,29 @@ function StatusBadge({ status }) {
   return <span className={`status-badge ${c.class}`}>{c.label}</span>;
 }
 
+function CriticalityBadge({ tier }) {
+  const config = {
+    'tier-1': { label: 'Tier 1', class: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800' },
+    'tier-2': { label: 'Tier 2', class: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800' },
+    'tier-3': { label: 'Tier 3', class: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' },
+    'tier-4': { label: 'Tier 4', class: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-600' },
+  };
+
+  const c = config[tier] || config['tier-4'];
+  return <span className={`px-2 py-0.5 text-xs font-medium rounded border ${c.class}`}>{c.label}</span>;
+}
+
 function AddSourceModal({ onClose, onCreate, allCategories }) {
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Network',
     status: 'not-collected',
-    integration: '',
-    criticality: '',
-    owner: '',
+    description: '',
+    ownerTeam: '',
+    ownerContact: '',
+    category: 'Network',
+    logType: '',
+    criticalityTier: '',
+    retention: '',
     notes: ''
   });
   const [saving, setSaving] = useState(false);
@@ -448,20 +563,77 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
   };
 
   return (
-    <Modal onClose={onClose} title="Add Log Source">
+    <Modal onClose={onClose} title="Add Log Source" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
-            autoFocus
-          />
+        {/* Basic Information */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2 md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g., Palo Alto Firewall"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              required
+              autoFocus
+            />
+          </div>
+          
+          <div className="col-span-2 md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+          <textarea
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            rows={2}
+            placeholder="Brief description of this log source and its purpose"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+
+        {/* Ownership */}
+        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded space-y-4">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Ownership</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Team</label>
+              <input
+                type="text"
+                value={formData.ownerTeam}
+                onChange={(e) => setFormData({ ...formData, ownerTeam: e.target.value })}
+                placeholder="e.g., Security Operations"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Contact</label>
+              <input
+                type="text"
+                value={formData.ownerContact}
+                onChange={(e) => setFormData({ ...formData, ownerContact: e.target.value })}
+                placeholder="e.g., soc@company.com"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Technical Details */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
@@ -477,20 +649,60 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Type</label>
             <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              value={formData.logType}
+              onChange={(e) => setFormData({ ...formData, logType: e.target.value })}
               className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              {statusOptions.map(opt => (
+              <option value="">Select log type...</option>
+              {logTypeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Criticality Tier</label>
+            <select
+              value={formData.criticalityTier}
+              onChange={(e) => setFormData({ ...formData, criticalityTier: e.target.value })}
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Select criticality...</option>
+              {criticalityTierOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retention Period</label>
+            <select
+              value={formData.retention}
+              onChange={(e) => setFormData({ ...formData, retention: e.target.value })}
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Select retention...</option>
+              {retentionOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>
         </div>
         
-        <div className="flex justify-end gap-2 pt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+          <textarea
+            value={formData.notes}
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            rows={2}
+            placeholder="Additional notes, configuration details, known issues..."
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        
+        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
             onClick={onClose}
@@ -644,10 +856,12 @@ function DeleteConfirmModal({ source, onClose, onConfirm }) {
   );
 }
 
-function Modal({ children, onClose, title }) {
+function Modal({ children, onClose, title, size = 'md' }) {
+  const sizeClass = size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-slide-in">
+      <div className={`bg-white dark:bg-gray-800 rounded shadow-xl ${sizeClass} w-full max-h-[90vh] overflow-y-auto animate-slide-in`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
           <button
