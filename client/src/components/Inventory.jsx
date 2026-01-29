@@ -16,11 +16,18 @@ import {
   Clock,
   Database,
   Shield,
-  Tag
+  Tag,
+  CheckCircle,
+  XCircle,
+  Target,
+  Link2,
+  TrendingUp,
+  Layers,
+  Activity
 } from 'lucide-react';
-import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions } from '../constants';
+import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions, calculateMitreCoverage, validationTestLibrary, categoryToDataSources, techniqueToDataSources } from '../constants';
 
-function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding }) {
+function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding, targets, relationships, validationTests }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -30,6 +37,65 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Calculate stats for summary cards
+  const stats = useMemo(() => {
+    const total = sources.length;
+    const collected = sources.filter(s => s.status === 'collected').length;
+    const partial = sources.filter(s => s.status === 'partial').length;
+    const planned = sources.filter(s => s.status === 'planned').length;
+    const notCollected = sources.filter(s => s.status === 'not-collected').length;
+    const blocked = sources.filter(s => s.status === 'blocked').length;
+    const collectionRate = total > 0 ? Math.round(((collected + partial * 0.5) / total) * 100) : 0;
+    
+    // MITRE coverage contribution
+    const mitreCoverage = calculateMitreCoverage(sources);
+    
+    // Validation coverage - how many techniques can we test based on our data sources
+    const providedDataSources = new Set();
+    sources
+      .filter(s => s.status === 'collected' || s.status === 'partial')
+      .forEach(source => {
+        const categoryDS = categoryToDataSources[source.category] || [];
+        categoryDS.forEach(ds => providedDataSources.add(ds));
+      });
+    
+    // Count tests that have data source coverage
+    const testsWithCoverage = validationTestLibrary.filter(test => {
+      const requiredDS = techniqueToDataSources[test.technique] || [];
+      return requiredDS.length > 0 && requiredDS.some(ds => providedDataSources.has(ds));
+    }).length;
+    const validationCoverage = validationTestLibrary.length > 0 
+      ? Math.round((testsWithCoverage / validationTestLibrary.length) * 100) 
+      : 0;
+    
+    // Target assignments
+    const sourcesWithTargets = sources.filter(s => s.targetId).length;
+    const targetAssignmentRate = total > 0 ? Math.round((sourcesWithTargets / total) * 100) : 0;
+    
+    // Relationship count
+    const relationshipCount = (relationships || []).length;
+    
+    return {
+      total,
+      collected,
+      partial,
+      planned,
+      notCollected,
+      blocked,
+      collectionRate,
+      mitreTechniques: mitreCoverage.summary.fullyCovered,
+      mitreTotalTechniques: mitreCoverage.summary.totalTechniques,
+      dataSourcesProvided: mitreCoverage.dataSourcesProvided.length,
+      validationCoverage,
+      testsWithCoverage,
+      totalTests: validationTestLibrary.length,
+      sourcesWithTargets,
+      targetAssignmentRate,
+      relationshipCount,
+      gaps: notCollected + blocked,
+    };
+  }, [sources, relationships]);
 
   // Get all used tags from sources
   const allUsedTags = useMemo(() => {
@@ -68,7 +134,10 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Log Source Inventory</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Database className="h-5 w-5 text-blue-500" />
+            Log Source Inventory
+          </h2>
           <p className="text-xs text-gray-600 dark:text-gray-400">Manage and track your organization's log sources</p>
         </div>
         
@@ -97,6 +166,45 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
             Quick Add
           </button>
         </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatCard
+          title="Total Sources"
+          value={stats.total}
+          subtitle={`${stats.collected} collected, ${stats.partial} partial`}
+          icon={Database}
+          color="blue"
+        />
+        <StatCard
+          title="Collection Rate"
+          value={`${stats.collectionRate}%`}
+          subtitle={stats.gaps > 0 ? `${stats.gaps} gaps to address` : 'All sources covered'}
+          icon={CheckCircle}
+          color={stats.collectionRate >= 80 ? 'green' : stats.collectionRate >= 50 ? 'yellow' : 'red'}
+        />
+        <StatCard
+          title="MITRE Coverage"
+          value={stats.mitreTechniques}
+          subtitle={`of ${stats.mitreTotalTechniques} techniques`}
+          icon={Shield}
+          color="purple"
+        />
+        <StatCard
+          title="Validation Ready"
+          value={`${stats.validationCoverage}%`}
+          subtitle={`${stats.testsWithCoverage}/${stats.totalTests} tests coverable`}
+          icon={Activity}
+          color="orange"
+        />
+        <StatCard
+          title="Integrations"
+          value={stats.sourcesWithTargets}
+          subtitle={`${stats.relationshipCount} relationships defined`}
+          icon={Link2}
+          color="cyan"
+        />
       </div>
 
       {/* Filters */}
@@ -151,9 +259,31 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         </select>
       </div>
 
-      {/* Results count */}
-      <div className="text-xs text-gray-600 dark:text-gray-400">
-        Showing {filteredSources.length} of {sources.length} sources
+      {/* Results count with quick insights */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-gray-600 dark:text-gray-400">
+          Showing {filteredSources.length} of {sources.length} sources
+        </div>
+        <div className="flex items-center gap-2">
+          {stats.blocked > 0 && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-[10px] font-medium">
+              <XCircle className="h-3 w-3" />
+              {stats.blocked} blocked
+            </span>
+          )}
+          {stats.planned > 0 && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-[10px] font-medium">
+              <Clock className="h-3 w-3" />
+              {stats.planned} planned
+            </span>
+          )}
+          {stats.notCollected > 0 && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-[10px] font-medium">
+              <AlertTriangle className="h-3 w-3" />
+              {stats.notCollected} not collected
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Sources list */}
@@ -169,20 +299,28 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredSources.map(source => (
-              <SourceRow
-                key={source.id}
-                source={source}
-                isExpanded={expandedId === source.id}
-                isEditing={editingId === source.id}
-                onToggle={() => setExpandedId(expandedId === source.id ? null : source.id)}
-                onEdit={() => setEditingId(source.id)}
-                onCancelEdit={() => setEditingId(null)}
-                onUpdate={onUpdate}
-                onDelete={() => setDeleteConfirm(source)}
-                allCategories={allCategories}
-              />
-            ))}
+            {filteredSources.map(source => {
+              // Find target and relationships for this source
+              const sourceTarget = targets?.find(t => t.id === source.targetId);
+              const sourceRelationships = relationships?.filter(r => r.sourceId === source.id) || [];
+              
+              return (
+                <SourceRow
+                  key={source.id}
+                  source={source}
+                  isExpanded={expandedId === source.id}
+                  isEditing={editingId === source.id}
+                  onToggle={() => setExpandedId(expandedId === source.id ? null : source.id)}
+                  onEdit={() => setEditingId(source.id)}
+                  onCancelEdit={() => setEditingId(null)}
+                  onUpdate={onUpdate}
+                  onDelete={() => setDeleteConfirm(source)}
+                  allCategories={allCategories}
+                  target={sourceTarget}
+                  relationshipCount={sourceRelationships.length}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -219,7 +357,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   );
 }
 
-function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEdit, onUpdate, onDelete, allCategories }) {
+function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEdit, onUpdate, onDelete, allCategories, target, relationshipCount }) {
   const [formData, setFormData] = useState(source);
   const [saving, setSaving] = useState(false);
 
@@ -242,7 +380,22 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
         </button>
         
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{source.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{source.name}</div>
+            {/* Integration badges */}
+            {target && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-[10px]">
+                <Target className="h-2.5 w-2.5" />
+                {target.name}
+              </span>
+            )}
+            {relationshipCount > 0 && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 rounded text-[10px]">
+                <Link2 className="h-2.5 w-2.5" />
+                {relationshipCount}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <span>{source.category}</span>
             {source.logType && (
@@ -1098,6 +1251,35 @@ function Modal({ children, onClose, title, size = 'md' }) {
         </div>
         <div className="p-4">
           {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, subtitle, icon: Icon, color }) {
+  const colorClasses = {
+    blue: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
+    cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+  };
+
+  return (
+    <div className="rounded p-4 shadow-sm border bg-gradient-brand-subtle border-purple-200 dark:border-purple-800">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-gray-600 dark:text-gray-400">{title}</p>
+          <p className="text-2xl font-bold mt-0.5 text-gradient-brand">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{subtitle}</p>
+          )}
+        </div>
+        <div className={`p-2 rounded ${colorClasses[color]}`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </div>

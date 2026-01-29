@@ -33,9 +33,20 @@ import {
   Code,
   Copy,
   CheckCheck,
-  Database
+  Database,
+  Cpu
 } from 'lucide-react';
-import { validationTestLibrary, mitreTactics, techniqueToDataSources, mitreDataSources, categoryToDataSources } from '../constants';
+import { 
+  validationTestLibrary, 
+  mitreTactics, 
+  techniqueToDataSources, 
+  techniqueToDataComponents,
+  mitreDataSources, 
+  mitreDataComponents,
+  categoryToDataSources,
+  getTechniqueComponentCoverage,
+  getCategoryDataComponents
+} from '../constants';
 import { validationAPI } from '../api';
 
 function Validation({ validationTests, onSaveResult, sources, campaigns, onCreateCampaign, onUpdateCampaign, onDeleteCampaign }) {
@@ -64,7 +75,19 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
     return provided;
   }, [sources]);
 
-  // Helper to get technique data source coverage
+  // Calculate which data components are provided by collected log sources
+  const providedDataComponents = useMemo(() => {
+    const provided = new Set();
+    (sources || [])
+      .filter(s => s.status === 'collected' || s.status === 'partial')
+      .forEach(source => {
+        const components = getCategoryDataComponents(source.category);
+        components.forEach(comp => provided.add(comp.id));
+      });
+    return provided;
+  }, [sources]);
+
+  // Helper to get technique data source coverage (backwards compatible)
   const getTechniqueCoverage = (technique) => {
     const requiredDS = techniqueToDataSources[technique] || [];
     if (requiredDS.length === 0) return { covered: [], missing: [], percentage: 0 };
@@ -74,6 +97,28 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
     const percentage = Math.round((covered.length / requiredDS.length) * 100);
     
     return { covered, missing, percentage };
+  };
+
+  // Helper to get technique data component coverage (more granular)
+  const getTechniqueComponentCoverageLocal = (technique) => {
+    const requiredDC = techniqueToDataComponents[technique] || [];
+    if (requiredDC.length === 0) return { covered: [], missing: [], percentage: 0, components: [] };
+    
+    const covered = requiredDC.filter(dc => providedDataComponents.has(dc));
+    const missing = requiredDC.filter(dc => !providedDataComponents.has(dc));
+    const percentage = Math.round((covered.length / requiredDC.length) * 100);
+    
+    // Get full component details
+    const coveredComponents = covered.map(id => mitreDataComponents.find(c => c.id === id)).filter(Boolean);
+    const missingComponents = missing.map(id => mitreDataComponents.find(c => c.id === id)).filter(Boolean);
+    
+    return { 
+      covered, 
+      missing, 
+      percentage, 
+      coveredComponents,
+      missingComponents 
+    };
   };
 
   // Filter tests by campaign
@@ -89,13 +134,15 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
     return validationTestLibrary.map(test => {
       const result = campaignTests.find(r => r.testId === test.id);
       const coverage = getTechniqueCoverage(test.technique);
+      const componentCoverage = getTechniqueComponentCoverageLocal(test.technique);
       return {
         ...test,
         result: result || null,
         dataSourceCoverage: coverage,
+        dataComponentCoverage: componentCoverage,
       };
     });
-  }, [campaignTests, providedDataSources]);
+  }, [campaignTests, providedDataSources, providedDataComponents]);
 
   // Filter tests
   const filteredTests = useMemo(() => {
@@ -722,6 +769,67 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
                   {test.dataSourceCoverage.covered.length === 0 && test.dataSourceCoverage.missing.length === 0 && (
                     <div className="text-xs text-gray-500 dark:text-gray-400 italic">
                       No specific data sources mapped for this technique
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* MITRE Data Component Coverage (more granular) */}
+            {test.dataComponentCoverage && test.dataComponentCoverage.percentage > 0 && (
+              <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Cpu className="h-3.5 w-3.5" />
+                    Data Components (Granular)
+                  </div>
+                  <div className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    test.dataComponentCoverage.percentage === 100 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : test.dataComponentCoverage.percentage >= 50
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                  }`}>
+                    {test.dataComponentCoverage.percentage}% ({test.dataComponentCoverage.covered.length}/{test.dataComponentCoverage.covered.length + test.dataComponentCoverage.missing.length})
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {test.dataComponentCoverage.coveredComponents?.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✓ Available Components</div>
+                      <div className="flex flex-wrap gap-1">
+                        {test.dataComponentCoverage.coveredComponents.map(comp => (
+                          <a 
+                            key={comp.id}
+                            href={`https://attack.mitre.org/datacomponents/${comp.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/40 transition-colors"
+                            title={`${comp.id}: ${comp.description}`}
+                          >
+                            {comp.name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {test.dataComponentCoverage.missingComponents?.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✗ Missing Components</div>
+                      <div className="flex flex-wrap gap-1">
+                        {test.dataComponentCoverage.missingComponents.map(comp => (
+                          <a 
+                            key={comp.id}
+                            href={`https://attack.mitre.org/datacomponents/${comp.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/40 transition-colors"
+                            title={`${comp.id}: ${comp.description}`}
+                          >
+                            {comp.name}
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

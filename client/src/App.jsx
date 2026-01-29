@@ -446,6 +446,9 @@ function App() {
               onBulkImport={handleBulkImport}
               savedViews={savedViews}
               onOpenOnboarding={() => setShowOnboarding(true)}
+              targets={targets}
+              relationships={relationships}
+              validationTests={validationTests}
             />
           )}
           
