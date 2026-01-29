@@ -6,16 +6,18 @@ import {
   ChevronLeft,
   ChevronRight,
   FlaskConical,
-  FileBarChart
+  FileBarChart,
+  GitMerge
 } from 'lucide-react';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortcut: '1' },
   { id: 'inventory', label: 'Inventory', icon: Database, shortcut: '2' },
-  { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '3' },
-  { id: 'validation', label: 'Validation', icon: FlaskConical, shortcut: '4' },
-  { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '5' },
-  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '6' },
+  { id: 'relationships', label: 'Relationships', icon: GitMerge, shortcut: '3' },
+  { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '4' },
+  { id: 'validation', label: 'Validation', icon: FlaskConical, shortcut: '5' },
+  { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '6' },
+  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '7' },
 ];
 
 function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {

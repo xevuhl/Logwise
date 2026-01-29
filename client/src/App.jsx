@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -9,6 +9,7 @@ import AuditLog from './components/AuditLog';
 import Validation from './components/Validation';
 import Reports from './components/Reports';
 import Onboarding from './components/Onboarding';
+import Relationships from './components/Relationships';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
   const [assessments, setAssessments] = useState({});
   const [validationTests, setValidationTests] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
+  const [relationships, setRelationships] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,11 +50,12 @@ function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [sourcesData, assessmentsData, validationData, campaignsData, auditData, viewsData] = await Promise.all([
+        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, auditData, viewsData] = await Promise.all([
           sourcesAPI.getAll(),
           assessmentsAPI.getAll(),
           validationAPI.getAll(),
           campaignsAPI.getAll(),
+          relationshipsAPI.getAll(),
           auditAPI.getAll(),
           viewsAPI.getAll(),
         ]);
@@ -67,6 +70,7 @@ function App() {
         
         setValidationTests(validationData);
         setCampaigns(campaignsData);
+        setRelationships(relationshipsData);
         setAuditLog(auditData);
         setSavedViews(viewsData);
         setError(null);
@@ -91,11 +95,12 @@ function App() {
       }
 
       if (e.key === '1') setActiveTab('dashboard');
-      if (e.key === '2') setActiveTab('assessment');
-      if (e.key === '3') setActiveTab('inventory');
-      if (e.key === '4') setActiveTab('validation');
-      if (e.key === '5') setActiveTab('reports');
-      if (e.key === '6') setActiveTab('audit');
+      if (e.key === '2') setActiveTab('inventory');
+      if (e.key === '3') setActiveTab('relationships');
+      if (e.key === '4') setActiveTab('assessment');
+      if (e.key === '5') setActiveTab('validation');
+      if (e.key === '6') setActiveTab('reports');
+      if (e.key === '7') setActiveTab('audit');
       if (e.key === 'd') setDarkMode(prev => !prev);
     }
 
@@ -232,6 +237,45 @@ function App() {
       setAuditLog(auditData);
     } catch (err) {
       console.error('Failed to delete campaign:', err);
+      throw err;
+    }
+  }, []);
+
+  // Relationship operations
+  const handleCreateRelationship = useCallback(async (relationship) => {
+    try {
+      const newRelationship = await relationshipsAPI.create(relationship);
+      setRelationships(prev => [...prev, newRelationship]);
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return newRelationship;
+    } catch (err) {
+      console.error('Failed to create relationship:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleUpdateRelationship = useCallback(async (id, updates) => {
+    try {
+      const updated = await relationshipsAPI.update(id, updates);
+      setRelationships(prev => prev.map(r => r.id === id ? updated : r));
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return updated;
+    } catch (err) {
+      console.error('Failed to update relationship:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleDeleteRelationship = useCallback(async (id) => {
+    try {
+      await relationshipsAPI.delete(id);
+      setRelationships(prev => prev.filter(r => r.id !== id));
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+    } catch (err) {
+      console.error('Failed to delete relationship:', err);
       throw err;
     }
   }, []);
@@ -376,6 +420,16 @@ function App() {
               sources={sources}
               assessments={assessments}
               validationTests={validationTests}
+            />
+          )}
+          
+          {activeTab === 'relationships' && (
+            <Relationships
+              sources={sources}
+              relationships={relationships}
+              onCreate={handleCreateRelationship}
+              onUpdate={handleUpdateRelationship}
+              onDelete={handleDeleteRelationship}
             />
           )}
           

@@ -338,4 +338,64 @@ export const validationCampaigns = {
   }
 };
 
+// ============ SOURCE RELATIONSHIPS ============
+
+export const relationships = {
+  getAll() {
+    return readData('relationships.json');
+  },
+  
+  getById(id) {
+    const all = this.getAll();
+    return all.find(r => r.id === id);
+  },
+  
+  getBySourceId(sourceId) {
+    const all = this.getAll();
+    return all.filter(r => r.sourceId === sourceId || r.targetId === sourceId);
+  },
+  
+  create(relationship) {
+    const all = this.getAll();
+    const newRelationship = {
+      id: generateId(),
+      ...relationship,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    all.push(newRelationship);
+    writeData('relationships.json', all);
+    return newRelationship;
+  },
+  
+  update(id, updates) {
+    const all = this.getAll();
+    const index = all.findIndex(r => r.id === id);
+    if (index === -1) return null;
+    
+    all[index] = {
+      ...all[index],
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('relationships.json', all);
+    return all[index];
+  },
+  
+  delete(id) {
+    let all = this.getAll();
+    all = all.filter(r => r.id !== id);
+    writeData('relationships.json', all);
+    return true;
+  },
+  
+  deleteBySourceId(sourceId) {
+    let all = this.getAll();
+    all = all.filter(r => r.sourceId !== sourceId && r.targetId !== sourceId);
+    writeData('relationships.json', all);
+    return true;
+  }
+};
+
 console.log('Data storage initialized at:', DATA_DIR);

@@ -138,3 +138,25 @@ export const campaignsAPI = {
   
   getTests: (id) => fetchAPI(`/campaigns/${id}/tests`),
 };
+
+// ============ RELATIONSHIPS ============
+
+export const relationshipsAPI = {
+  getAll: () => fetchAPI('/relationships'),
+  
+  getBySource: (sourceId) => fetchAPI(`/relationships/source/${sourceId}`),
+  
+  create: (relationship) => fetchAPI('/relationships', {
+    method: 'POST',
+    body: JSON.stringify(relationship),
+  }),
+  
+  update: (id, relationship) => fetchAPI(`/relationships/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(relationship),
+  }),
+  
+  delete: (id) => fetchAPI(`/relationships/${id}`, {
+    method: 'DELETE',
+  }),
+};

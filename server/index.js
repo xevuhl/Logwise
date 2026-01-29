@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -376,6 +376,79 @@ app.get('/api/campaigns/:id/tests', (req, res) => {
   } catch (error) {
     console.error('Error fetching campaign tests:', error);
     res.status(500).json({ error: 'Failed to fetch campaign tests' });
+  }
+});
+
+// ============ RELATIONSHIPS API ============
+
+// Get all relationships
+app.get('/api/relationships', (req, res) => {
+  try {
+    const allRelationships = relationships.getAll();
+    res.json(allRelationships);
+  } catch (error) {
+    console.error('Error fetching relationships:', error);
+    res.status(500).json({ error: 'Failed to fetch relationships' });
+  }
+});
+
+// Get relationships for a specific source
+app.get('/api/relationships/source/:sourceId', (req, res) => {
+  try {
+    const sourceRelationships = relationships.getBySourceId(req.params.sourceId);
+    res.json(sourceRelationships);
+  } catch (error) {
+    console.error('Error fetching source relationships:', error);
+    res.status(500).json({ error: 'Failed to fetch source relationships' });
+  }
+});
+
+// Create relationship
+app.post('/api/relationships', (req, res) => {
+  try {
+    const newRelationship = relationships.create(req.body);
+    const source = sources.getById(req.body.sourceId);
+    const target = sources.getById(req.body.targetId);
+    auditLog.add('relationship_created', `${source?.name} → ${target?.name}`, {
+      type: req.body.type,
+      sourceId: req.body.sourceId,
+      targetId: req.body.targetId
+    });
+    res.status(201).json(newRelationship);
+  } catch (error) {
+    console.error('Error creating relationship:', error);
+    res.status(500).json({ error: 'Failed to create relationship' });
+  }
+});
+
+// Update relationship
+app.put('/api/relationships/:id', (req, res) => {
+  try {
+    const existing = relationships.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Relationship not found' });
+    }
+    const updated = relationships.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating relationship:', error);
+    res.status(500).json({ error: 'Failed to update relationship' });
+  }
+});
+
+// Delete relationship
+app.delete('/api/relationships/:id', (req, res) => {
+  try {
+    const existing = relationships.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Relationship not found' });
+    }
+    relationships.delete(req.params.id);
+    auditLog.add('relationship_deleted', `Relationship removed`);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting relationship:', error);
+    res.status(500).json({ error: 'Failed to delete relationship' });
   }
 });
 

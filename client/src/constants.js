@@ -362,6 +362,66 @@ export const statusOptions = [
   { value: 'blocked', label: 'Blocked', color: 'red' },
 ];
 
+// Relationship types between log sources
+export const relationshipTypes = [
+  { 
+    value: 'feeds', 
+    label: 'Feeds Into', 
+    description: 'Source sends logs/data to target',
+    color: 'blue',
+    icon: 'ArrowRight'
+  },
+  { 
+    value: 'enriches', 
+    label: 'Enriches', 
+    description: 'Source provides context/enrichment to target',
+    color: 'purple',
+    icon: 'Sparkles'
+  },
+  { 
+    value: 'triggers', 
+    label: 'Triggers', 
+    description: 'Source events trigger actions in target',
+    color: 'orange',
+    icon: 'Zap'
+  },
+  { 
+    value: 'depends-on', 
+    label: 'Depends On', 
+    description: 'Source depends on target for operation',
+    color: 'red',
+    icon: 'Link'
+  },
+  { 
+    value: 'aggregates', 
+    label: 'Aggregates', 
+    description: 'Source aggregates logs from target',
+    color: 'green',
+    icon: 'Layers'
+  },
+  { 
+    value: 'normalizes', 
+    label: 'Normalizes', 
+    description: 'Source normalizes/parses logs from target',
+    color: 'cyan',
+    icon: 'FileCode'
+  },
+  { 
+    value: 'correlates', 
+    label: 'Correlates With', 
+    description: 'Source correlates events with target',
+    color: 'indigo',
+    icon: 'GitMerge'
+  },
+  { 
+    value: 'mirrors', 
+    label: 'Mirrors', 
+    description: 'Source mirrors/replicates target data',
+    color: 'gray',
+    icon: 'Copy'
+  },
+];
+
 // Category options for log sources
 export const categoryOptions = [
   'Network',
