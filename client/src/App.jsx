@@ -11,6 +11,7 @@ import Reports from './components/Reports';
 import Onboarding from './components/Onboarding';
 import Relationships from './components/Relationships';
 import Targets from './components/Targets';
+import MitreCoverage from './components/MitreCoverage';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -424,6 +425,7 @@ function App() {
               stats={stats} 
               sources={sources}
               assessments={assessments}
+              validationTests={validationTests}
             />
           )}
           
@@ -456,6 +458,13 @@ function App() {
               onCreateCampaign={handleCreateCampaign}
               onUpdateCampaign={handleUpdateCampaign}
               onDeleteCampaign={handleDeleteCampaign}
+            />
+          )}
+          
+          {activeTab === 'mitre' && (
+            <MitreCoverage
+              sources={sources}
+              validationTests={validationTests}
             />
           )}
           

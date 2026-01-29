@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { CheckCircle, Circle, AlertCircle, HelpCircle, ChevronDown, ChevronRight, Link, X, Plus } from 'lucide-react';
-import { assessmentQuestions, assessmentResponseOptions } from '../constants';
+import { CheckCircle, Circle, AlertCircle, HelpCircle, ChevronDown, ChevronRight, Link, X, Plus, Shield } from 'lucide-react';
+import { assessmentQuestions, assessmentResponseOptions, mitreTactics } from '../constants';
 
 function Assessment({ assessments, onSave, sources }) {
   const [expandedCategory, setExpandedCategory] = useState(null);
@@ -154,6 +154,31 @@ function Assessment({ assessments, onSave, sources }) {
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                               {question.description}
                             </p>
+                            
+                            {/* MITRE ATT&CK Tactic mapping */}
+                            {question.mitreTactics && question.mitreTactics.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                <span className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                  <Shield className="h-3 w-3" />
+                                  MITRE:
+                                </span>
+                                {question.mitreTactics.map(tacticId => {
+                                  const tactic = mitreTactics.find(t => t.id === tacticId);
+                                  return (
+                                    <a
+                                      key={tacticId}
+                                      href={tactic?.url || `https://attack.mitre.org/tactics/${tacticId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded text-[10px] text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/40 transition-colors"
+                                      title={tactic?.name || tacticId}
+                                    >
+                                      {tactic?.shortName || tactic?.name || tacticId}
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            )}
                             
                             {/* Response buttons */}
                             <div className="flex gap-1.5 mt-3">

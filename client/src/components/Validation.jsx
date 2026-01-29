@@ -32,9 +32,10 @@ import {
   BookOpen,
   Code,
   Copy,
-  CheckCheck
+  CheckCheck,
+  Database
 } from 'lucide-react';
-import { validationTestLibrary } from '../constants';
+import { validationTestLibrary, mitreTactics, techniqueToDataSources, mitreDataSources, categoryToDataSources } from '../constants';
 import { validationAPI } from '../api';
 
 function Validation({ validationTests, onSaveResult, sources, campaigns, onCreateCampaign, onUpdateCampaign, onDeleteCampaign }) {
@@ -51,6 +52,30 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
   // Get unique tactics
   const tactics = [...new Set(validationTestLibrary.map(t => t.tactic))];
 
+  // Calculate which data sources are provided by collected log sources
+  const providedDataSources = useMemo(() => {
+    const provided = new Set();
+    (sources || [])
+      .filter(s => s.status === 'collected' || s.status === 'partial')
+      .forEach(source => {
+        const categoryDS = categoryToDataSources[source.category] || [];
+        categoryDS.forEach(ds => provided.add(ds));
+      });
+    return provided;
+  }, [sources]);
+
+  // Helper to get technique data source coverage
+  const getTechniqueCoverage = (technique) => {
+    const requiredDS = techniqueToDataSources[technique] || [];
+    if (requiredDS.length === 0) return { covered: [], missing: [], percentage: 0 };
+    
+    const covered = requiredDS.filter(ds => providedDataSources.has(ds));
+    const missing = requiredDS.filter(ds => !providedDataSources.has(ds));
+    const percentage = Math.round((covered.length / requiredDS.length) * 100);
+    
+    return { covered, missing, percentage };
+  };
+
   // Filter tests by campaign
   const campaignTests = useMemo(() => {
     if (selectedCampaign === 'all') {
@@ -63,12 +88,14 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
   const testsWithResults = useMemo(() => {
     return validationTestLibrary.map(test => {
       const result = campaignTests.find(r => r.testId === test.id);
+      const coverage = getTechniqueCoverage(test.technique);
       return {
         ...test,
         result: result || null,
+        dataSourceCoverage: coverage,
       };
     });
-  }, [campaignTests]);
+  }, [campaignTests, providedDataSources]);
 
   // Filter tests
   const filteredTests = useMemo(() => {
@@ -545,6 +572,23 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
         
         {getStatusBadge()}
         
+        {/* Data Source Coverage Indicator */}
+        {test.dataSourceCoverage && test.dataSourceCoverage.percentage > 0 && (
+          <span 
+            className={`px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1 ${
+              test.dataSourceCoverage.percentage === 100
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                : test.dataSourceCoverage.percentage >= 50
+                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                  : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+            }`}
+            title={`${test.dataSourceCoverage.covered.length}/${test.dataSourceCoverage.covered.length + test.dataSourceCoverage.missing.length} data sources available`}
+          >
+            <Database className="h-3 w-3" />
+            {test.dataSourceCoverage.percentage}%
+          </span>
+        )}
+        
         {hasEvidence && (
           <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded text-[10px] text-purple-600 dark:text-purple-400" title="Has evidence attached">
             <Paperclip className="h-3 w-3 inline" />
@@ -617,6 +661,72 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
                 ))}
               </div>
             </div>
+
+            {/* MITRE Data Source Coverage */}
+            {test.dataSourceCoverage && (
+              <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Database className="h-3.5 w-3.5" />
+                    MITRE Data Source Coverage
+                  </div>
+                  <div className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    test.dataSourceCoverage.percentage === 100 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : test.dataSourceCoverage.percentage >= 50
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                  }`}>
+                    {test.dataSourceCoverage.percentage}% Coverage
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {test.dataSourceCoverage.covered.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✓ Available Data Sources</div>
+                      <div className="flex flex-wrap gap-1">
+                        {test.dataSourceCoverage.covered.map(dsId => {
+                          const ds = mitreDataSources.find(d => d.id === dsId);
+                          return (
+                            <span 
+                              key={dsId}
+                              className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-400"
+                              title={ds?.name || dsId}
+                            >
+                              {ds?.name || dsId}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {test.dataSourceCoverage.missing.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✗ Missing Data Sources</div>
+                      <div className="flex flex-wrap gap-1">
+                        {test.dataSourceCoverage.missing.map(dsId => {
+                          const ds = mitreDataSources.find(d => d.id === dsId);
+                          return (
+                            <span 
+                              key={dsId}
+                              className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-700 dark:text-red-400"
+                              title={ds?.name || dsId}
+                            >
+                              {ds?.name || dsId}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {test.dataSourceCoverage.covered.length === 0 && test.dataSourceCoverage.missing.length === 0 && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                      No specific data sources mapped for this technique
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Validation Guidance Section */}
             {test.guidance && (

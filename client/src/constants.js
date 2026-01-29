@@ -100,30 +100,35 @@ export const assessmentQuestions = [
     category: 'Detect (CSF)',
     question: 'Are detection rules configured for credential-based attacks (brute force, credential stuffing)?',
     description: 'CSF DE.CM-1: The network is monitored for authentication anomalies and failed login patterns.',
+    mitreTactics: ['TA0006'], // Credential Access
   },
   {
     id: 'de5',
     category: 'Detect (CSF)',
     question: 'Are detection rules configured for privilege escalation attempts?',
     description: 'CSF DE.CM-3: Personnel activity is monitored for unauthorized privilege changes.',
+    mitreTactics: ['TA0004'], // Privilege Escalation
   },
   {
     id: 'de6',
     category: 'Detect (CSF)',
     question: 'Are detection rules configured for lateral movement indicators?',
     description: 'CSF DE.CM-1: Network monitoring detects unusual internal traffic patterns (RDP, SMB, WMI, PSExec).',
+    mitreTactics: ['TA0008'], // Lateral Movement
   },
   {
     id: 'de7',
     category: 'Detect (CSF)',
     question: 'Are detection rules configured for data exfiltration patterns?',
     description: 'CSF DE.CM-1: Monitoring for unusual outbound data transfers, DNS tunneling, or cloud storage uploads.',
+    mitreTactics: ['TA0010'], // Exfiltration
   },
   {
     id: 'de8',
     category: 'Detect (CSF)',
     question: 'Are detection rules configured for malware indicators (execution, persistence)?',
     description: 'CSF DE.CM-4: Malicious code is detected through process execution, file creation, and registry changes.',
+    mitreTactics: ['TA0002', 'TA0003'], // Execution, Persistence
   },
   {
     id: 'de9',
@@ -220,72 +225,84 @@ export const assessmentQuestions = [
     category: 'IR Readiness',
     question: 'Can you detect and investigate unauthorized access to user accounts?',
     description: 'Requires: Authentication logs, failed login attempts, account lockouts, unusual login times/locations.',
+    mitreTactics: ['TA0001', 'TA0006'], // Initial Access, Credential Access
   },
   {
     id: 'ir2',
     category: 'IR Readiness',
     question: 'Can you detect and investigate ransomware or destructive malware incidents?',
     description: 'Requires: File system logs, process execution, registry changes, volume shadow copy deletions, mass file modifications.',
+    mitreTactics: ['TA0002', 'TA0003', 'TA0040'], // Execution, Persistence, Impact
   },
   {
     id: 'ir3',
     category: 'IR Readiness',
     question: 'Can you detect and investigate business email compromise (BEC)?',
     description: 'Requires: Email gateway logs, mailbox audit logs, forwarding rule changes, OAuth app consents.',
+    mitreTactics: ['TA0001', 'TA0009'], // Initial Access, Collection
   },
   {
     id: 'ir4',
     category: 'IR Readiness',
     question: 'Can you detect and investigate data theft or exfiltration?',
     description: 'Requires: DLP logs, cloud storage access, USB device logs, large outbound transfers, DNS query logs.',
+    mitreTactics: ['TA0009', 'TA0010'], // Collection, Exfiltration
   },
   {
     id: 'ir5',
     category: 'IR Readiness',
     question: 'Can you detect and investigate insider threat activity?',
     description: 'Requires: User activity logs, file access patterns, after-hours access, bulk downloads, print logs.',
+    mitreTactics: ['TA0009', 'TA0010'], // Collection, Exfiltration
   },
   {
     id: 'ir6',
     category: 'IR Readiness',
     question: 'Can you detect and investigate network intrusion or APT activity?',
     description: 'Requires: Firewall logs, IDS/IPS alerts, DNS logs, proxy logs, endpoint detection logs, C2 beacon patterns.',
+    mitreTactics: ['TA0001', 'TA0008', 'TA0011'], // Initial Access, Lateral Movement, Command and Control
   },
   {
     id: 'ir7',
     category: 'IR Readiness',
     question: 'Can you detect and investigate cloud service compromise?',
     description: 'Requires: Cloud audit logs (AWS CloudTrail, Azure Activity, GCP Audit), IAM changes, resource modifications.',
+    mitreTactics: ['TA0001', 'TA0003', 'TA0004'], // Initial Access, Persistence, Privilege Escalation
   },
   {
     id: 'ir8',
     category: 'IR Readiness',
     question: 'Can you detect and investigate supply chain or third-party compromise?',
     description: 'Requires: Application logs, API access logs, vendor VPN logs, service account activity.',
+    mitreTactics: ['TA0001'], // Initial Access (Supply Chain Compromise)
   },
   {
     id: 'ir9',
     category: 'IR Readiness',
     question: 'Can you detect and investigate denial of service attacks?',
     description: 'Requires: Network flow data, firewall logs, load balancer logs, application performance logs.',
+    mitreTactics: ['TA0040'], // Impact
   },
   {
     id: 'ir10',
     category: 'IR Readiness',
     question: 'Can you detect and investigate web application attacks (SQLi, XSS)?',
     description: 'Requires: WAF logs, web server access logs, application error logs, database query logs.',
+    mitreTactics: ['TA0001', 'TA0002'], // Initial Access, Execution
   },
   {
     id: 'ir11',
     category: 'IR Readiness',
     question: 'Can you reconstruct a full attack timeline from initial access to impact?',
     description: 'Requires: Correlated logs across network, endpoint, identity, and application layers with consistent timestamps.',
+    mitreTactics: ['TA0001', 'TA0002', 'TA0003', 'TA0004', 'TA0005', 'TA0006', 'TA0007', 'TA0008', 'TA0009', 'TA0010', 'TA0011', 'TA0040'], // All kill chain tactics
   },
   {
     id: 'ir12',
     category: 'IR Readiness',
     question: 'Can you identify all affected systems and accounts during an incident?',
     description: 'Requires: Asset inventory integration, user-to-device mapping, network topology awareness in logs.',
+    mitreTactics: ['TA0007', 'TA0008'], // Discovery, Lateral Movement
   },
 
   // ============================================
@@ -1978,3 +1995,454 @@ export const validationTestLibrary = [
     }
   },
 ];
+// ============================================
+// MITRE ATT&CK FRAMEWORK DEFINITIONS
+// ============================================
+
+// MITRE ATT&CK Tactics (Enterprise Matrix)
+export const mitreTactics = [
+  { id: 'TA0043', name: 'Reconnaissance', shortName: 'Recon', color: 'slate', description: 'Gathering information to plan future adversary operations' },
+  { id: 'TA0042', name: 'Resource Development', shortName: 'Resource', color: 'zinc', description: 'Establishing resources to support operations' },
+  { id: 'TA0001', name: 'Initial Access', shortName: 'Initial', color: 'red', description: 'Trying to get into your network' },
+  { id: 'TA0002', name: 'Execution', shortName: 'Exec', color: 'orange', description: 'Trying to run malicious code' },
+  { id: 'TA0003', name: 'Persistence', shortName: 'Persist', color: 'amber', description: 'Trying to maintain their foothold' },
+  { id: 'TA0004', name: 'Privilege Escalation', shortName: 'PrivEsc', color: 'yellow', description: 'Trying to gain higher-level permissions' },
+  { id: 'TA0005', name: 'Defense Evasion', shortName: 'DefEvade', color: 'lime', description: 'Trying to avoid being detected' },
+  { id: 'TA0006', name: 'Credential Access', shortName: 'CredAccess', color: 'green', description: 'Stealing account names and passwords' },
+  { id: 'TA0007', name: 'Discovery', shortName: 'Discovery', color: 'emerald', description: 'Trying to figure out your environment' },
+  { id: 'TA0008', name: 'Lateral Movement', shortName: 'Lateral', color: 'teal', description: 'Moving through your environment' },
+  { id: 'TA0009', name: 'Collection', shortName: 'Collect', color: 'cyan', description: 'Gathering data of interest' },
+  { id: 'TA0011', name: 'Command and Control', shortName: 'C2', color: 'sky', description: 'Communicating with compromised systems' },
+  { id: 'TA0010', name: 'Exfiltration', shortName: 'Exfil', color: 'blue', description: 'Stealing data' },
+  { id: 'TA0040', name: 'Impact', shortName: 'Impact', color: 'violet', description: 'Manipulate, interrupt, or destroy systems and data' },
+];
+
+// MITRE ATT&CK Data Sources (v13+)
+// Maps what types of telemetry detect which activities
+export const mitreDataSources = [
+  // Process-based data sources
+  { 
+    id: 'DS0009', 
+    name: 'Process', 
+    description: 'Information about instances of computer programs running',
+    components: ['Process Creation', 'Process Termination', 'Process Access', 'Process Modification', 'OS API Execution'],
+    logSourceCategories: ['Endpoint', 'Security'],
+    logSourceExamples: ['Windows Security', 'Sysmon', 'EDR', 'Linux Auditd']
+  },
+  // Command execution
+  { 
+    id: 'DS0017', 
+    name: 'Command', 
+    description: 'Command execution telemetry',
+    components: ['Command Execution'],
+    logSourceCategories: ['Endpoint', 'Security'],
+    logSourceExamples: ['Windows PowerShell', 'Sysmon', 'EDR', 'Bash History']
+  },
+  // File-based data sources
+  { 
+    id: 'DS0022', 
+    name: 'File', 
+    description: 'Information about file objects',
+    components: ['File Creation', 'File Deletion', 'File Modification', 'File Access', 'File Metadata'],
+    logSourceCategories: ['Endpoint', 'Security'],
+    logSourceExamples: ['Sysmon', 'EDR', 'FIM', 'Windows Security']
+  },
+  // Network-based data sources
+  { 
+    id: 'DS0029', 
+    name: 'Network Traffic', 
+    description: 'Network communications and connections',
+    components: ['Network Connection Creation', 'Network Traffic Content', 'Network Traffic Flow'],
+    logSourceCategories: ['Network', 'Security'],
+    logSourceExamples: ['Firewall', 'Zeek', 'IDS/IPS', 'NetFlow', 'Proxy']
+  },
+  // User account data sources
+  { 
+    id: 'DS0002', 
+    name: 'User Account', 
+    description: 'User account authentication and authorization',
+    components: ['User Account Authentication', 'User Account Creation', 'User Account Modification', 'User Account Deletion'],
+    logSourceCategories: ['Identity', 'Security'],
+    logSourceExamples: ['Windows Security', 'Active Directory', 'Azure AD', 'Okta', 'Linux Auth']
+  },
+  // Logon session data sources
+  { 
+    id: 'DS0028', 
+    name: 'Logon Session', 
+    description: 'Session establishment and activity',
+    components: ['Logon Session Creation', 'Logon Session Metadata'],
+    logSourceCategories: ['Identity', 'Endpoint'],
+    logSourceExamples: ['Windows Security', 'VPN', 'Azure AD', 'Linux PAM']
+  },
+  // Windows Registry
+  { 
+    id: 'DS0024', 
+    name: 'Windows Registry', 
+    description: 'Windows Registry key and value operations',
+    components: ['Windows Registry Key Creation', 'Windows Registry Key Modification', 'Windows Registry Key Deletion'],
+    logSourceCategories: ['Endpoint'],
+    logSourceExamples: ['Sysmon', 'Windows Security', 'EDR']
+  },
+  // Active Directory
+  { 
+    id: 'DS0026', 
+    name: 'Active Directory', 
+    description: 'Active Directory object operations',
+    components: ['Active Directory Object Creation', 'Active Directory Object Modification', 'Active Directory Object Deletion', 'Active Directory Credential Request'],
+    logSourceCategories: ['Identity'],
+    logSourceExamples: ['Domain Controller', 'Azure AD', 'Active Directory']
+  },
+  // Scheduled Jobs
+  { 
+    id: 'DS0003', 
+    name: 'Scheduled Job', 
+    description: 'Scheduled task/job operations',
+    components: ['Scheduled Job Creation', 'Scheduled Job Modification'],
+    logSourceCategories: ['Endpoint'],
+    logSourceExamples: ['Windows Task Scheduler', 'Sysmon', 'Linux Cron']
+  },
+  // Service
+  { 
+    id: 'DS0019', 
+    name: 'Service', 
+    description: 'Service/daemon operations',
+    components: ['Service Creation', 'Service Modification'],
+    logSourceCategories: ['Endpoint'],
+    logSourceExamples: ['Windows System', 'Sysmon', 'Linux Systemd']
+  },
+  // Driver/Module
+  { 
+    id: 'DS0027', 
+    name: 'Driver', 
+    description: 'Kernel driver/module operations',
+    components: ['Driver Load'],
+    logSourceCategories: ['Endpoint', 'Security'],
+    logSourceExamples: ['Sysmon', 'Windows Security', 'Linux Kernel']
+  },
+  // Script
+  { 
+    id: 'DS0012', 
+    name: 'Script', 
+    description: 'Script execution telemetry',
+    components: ['Script Execution'],
+    logSourceCategories: ['Endpoint'],
+    logSourceExamples: ['Windows PowerShell', 'Sysmon', 'EDR']
+  },
+  // Application Log
+  { 
+    id: 'DS0015', 
+    name: 'Application Log', 
+    description: 'Application-level logging',
+    components: ['Application Log Content'],
+    logSourceCategories: ['Application'],
+    logSourceExamples: ['Web Server', 'Database', 'Custom Apps']
+  },
+  // Cloud
+  { 
+    id: 'DS0025', 
+    name: 'Cloud Service', 
+    description: 'Cloud service operations',
+    components: ['Cloud Service Enumeration', 'Cloud Service Modification'],
+    logSourceCategories: ['Cloud'],
+    logSourceExamples: ['AWS CloudTrail', 'Azure Activity', 'GCP Audit']
+  },
+  // Email
+  { 
+    id: 'DS0033', 
+    name: 'Email', 
+    description: 'Email gateway and mailbox operations',
+    components: ['Email Content', 'Email Metadata'],
+    logSourceCategories: ['Email'],
+    logSourceExamples: ['Email Gateway', 'Microsoft 365', 'Exchange']
+  },
+  // DNS
+  { 
+    id: 'DS0013', 
+    name: 'Domain Name', 
+    description: 'DNS query and response data',
+    components: ['Active DNS', 'Passive DNS'],
+    logSourceCategories: ['Network'],
+    logSourceExamples: ['DNS Server', 'Firewall', 'EDR', 'Zeek']
+  },
+  // Firmware
+  { 
+    id: 'DS0001', 
+    name: 'Firmware', 
+    description: 'Firmware modification detection',
+    components: ['Firmware Modification'],
+    logSourceCategories: ['Endpoint'],
+    logSourceExamples: ['UEFI/BIOS', 'TPM', 'EDR']
+  },
+  // WMI
+  { 
+    id: 'DS0005', 
+    name: 'WMI', 
+    description: 'Windows Management Instrumentation',
+    components: ['WMI Creation'],
+    logSourceCategories: ['Endpoint'],
+    logSourceExamples: ['Sysmon', 'Windows Security', 'EDR']
+  },
+  // Certificate
+  { 
+    id: 'DS0037', 
+    name: 'Certificate', 
+    description: 'Certificate operations',
+    components: ['Certificate Registration'],
+    logSourceCategories: ['Identity', 'Security'],
+    logSourceExamples: ['CA Server', 'Active Directory']
+  },
+  // Container
+  { 
+    id: 'DS0032', 
+    name: 'Container', 
+    description: 'Container runtime operations',
+    components: ['Container Creation', 'Container Start', 'Container Enumeration'],
+    logSourceCategories: ['Cloud', 'Endpoint'],
+    logSourceExamples: ['Docker', 'Kubernetes', 'Container Runtime']
+  },
+  // Image
+  { 
+    id: 'DS0007', 
+    name: 'Image', 
+    description: 'VM/Container image operations',
+    components: ['Image Creation', 'Image Modification'],
+    logSourceCategories: ['Cloud'],
+    logSourceExamples: ['Cloud Provider', 'VMware', 'Container Registry']
+  },
+  // Malware Repository
+  { 
+    id: 'DS0004', 
+    name: 'Malware Repository', 
+    description: 'Malware detection and analysis',
+    components: ['Malware Content', 'Malware Metadata'],
+    logSourceCategories: ['Security'],
+    logSourceExamples: ['Antivirus', 'EDR', 'Sandbox']
+  },
+  // Sensor Health
+  { 
+    id: 'DS0013', 
+    name: 'Sensor Health', 
+    description: 'Security sensor status',
+    components: ['Host Status'],
+    logSourceCategories: ['Security'],
+    logSourceExamples: ['EDR', 'Agent Health']
+  },
+];
+
+// Map log source categories to MITRE Data Sources they provide
+export const categoryToDataSources = {
+  'Network': ['DS0029', 'DS0013'],
+  'Endpoint': ['DS0009', 'DS0017', 'DS0022', 'DS0024', 'DS0003', 'DS0019', 'DS0027', 'DS0012', 'DS0005'],
+  'Application': ['DS0015'],
+  'Cloud': ['DS0025', 'DS0032', 'DS0007'],
+  'Identity': ['DS0002', 'DS0028', 'DS0026', 'DS0037'],
+  'Security': ['DS0009', 'DS0022', 'DS0029', 'DS0002', 'DS0004'],
+  'Database': ['DS0015'],
+  'Email': ['DS0033'],
+  'Web': ['DS0015', 'DS0029'],
+  'Other': [],
+};
+
+// Map MITRE techniques to data sources they require for detection
+// This enables coverage calculation
+export const techniqueToDataSources = {
+  // Initial Access
+  'T1078': ['DS0002', 'DS0028'], // Valid Accounts
+  'T1078.001': ['DS0002', 'DS0028'], // Valid Accounts: Default Accounts
+  'T1078.002': ['DS0002', 'DS0028', 'DS0026'], // Valid Accounts: Domain Accounts
+  'T1110': ['DS0002', 'DS0028'], // Brute Force
+  'T1110.001': ['DS0002', 'DS0028'], // Brute Force: Password Guessing
+  'T1566': ['DS0033'], // Phishing
+  'T1566.001': ['DS0033'], // Phishing: Spearphishing Attachment
+  'T1566.002': ['DS0033'], // Phishing: Spearphishing Link
+  
+  // Execution
+  'T1059': ['DS0017', 'DS0009'], // Command and Scripting Interpreter
+  'T1059.001': ['DS0017', 'DS0009', 'DS0012'], // PowerShell
+  'T1059.003': ['DS0017', 'DS0009'], // Windows Command Shell
+  'T1204': ['DS0009', 'DS0022'], // User Execution
+  'T1204.002': ['DS0009', 'DS0022'], // User Execution: Malicious File
+  
+  // Persistence
+  'T1053': ['DS0003'], // Scheduled Task/Job
+  'T1053.005': ['DS0003', 'DS0009'], // Scheduled Task
+  'T1547': ['DS0024', 'DS0009'], // Boot or Logon Autostart Execution
+  'T1547.001': ['DS0024', 'DS0009'], // Registry Run Keys
+  'T1543': ['DS0019', 'DS0009'], // Create or Modify System Process
+  'T1543.003': ['DS0019', 'DS0009'], // Windows Service
+  
+  // Privilege Escalation
+  'T1068': ['DS0009'], // Exploitation for Privilege Escalation
+  'T1548': ['DS0009', 'DS0017'], // Abuse Elevation Control Mechanism
+  'T1548.002': ['DS0009', 'DS0017'], // Bypass User Account Control
+  
+  // Defense Evasion
+  'T1070': ['DS0022', 'DS0009'], // Indicator Removal
+  'T1070.001': ['DS0022', 'DS0009'], // Clear Windows Event Logs
+  'T1562': ['DS0009', 'DS0019'], // Impair Defenses
+  'T1562.001': ['DS0009', 'DS0019'], // Disable or Modify Tools
+  'T1027': ['DS0022', 'DS0009'], // Obfuscated Files or Information
+  
+  // Credential Access
+  'T1003': ['DS0009', 'DS0022'], // OS Credential Dumping
+  'T1003.001': ['DS0009'], // LSASS Memory
+  'T1003.003': ['DS0009', 'DS0022'], // NTDS
+  'T1558': ['DS0028', 'DS0026'], // Steal or Forge Kerberos Tickets
+  'T1558.003': ['DS0028', 'DS0026'], // Kerberoasting
+  
+  // Discovery
+  'T1087': ['DS0009', 'DS0017'], // Account Discovery
+  'T1087.001': ['DS0009', 'DS0017'], // Local Account
+  'T1087.002': ['DS0009', 'DS0017', 'DS0026'], // Domain Account
+  'T1046': ['DS0029'], // Network Service Discovery
+  'T1082': ['DS0009', 'DS0017'], // System Information Discovery
+  'T1083': ['DS0009', 'DS0017'], // File and Directory Discovery
+  
+  // Lateral Movement
+  'T1021': ['DS0028', 'DS0029'], // Remote Services
+  'T1021.001': ['DS0028', 'DS0029'], // Remote Desktop Protocol
+  'T1021.002': ['DS0028', 'DS0029'], // SMB/Windows Admin Shares
+  'T1021.006': ['DS0028', 'DS0005'], // Windows Remote Management
+  'T1570': ['DS0029', 'DS0022'], // Lateral Tool Transfer
+  
+  // Collection
+  'T1005': ['DS0022', 'DS0009'], // Data from Local System
+  'T1039': ['DS0022', 'DS0029'], // Data from Network Shared Drive
+  'T1114': ['DS0033'], // Email Collection
+  
+  // Command and Control
+  'T1071': ['DS0029'], // Application Layer Protocol
+  'T1071.001': ['DS0029'], // Web Protocols
+  'T1105': ['DS0029', 'DS0022'], // Ingress Tool Transfer
+  'T1573': ['DS0029'], // Encrypted Channel
+  
+  // Exfiltration
+  'T1048': ['DS0029'], // Exfiltration Over Alternative Protocol
+  'T1048.003': ['DS0029'], // Exfiltration Over Unencrypted Non-C2 Protocol
+  'T1567': ['DS0029'], // Exfiltration Over Web Service
+  'T1567.002': ['DS0029'], // Exfiltration to Cloud Storage
+  
+  // Impact
+  'T1486': ['DS0022', 'DS0009'], // Data Encrypted for Impact
+  'T1490': ['DS0009', 'DS0017'], // Inhibit System Recovery
+  'T1489': ['DS0019', 'DS0009'], // Service Stop
+};
+
+// Map tactics to techniques covered in validation library
+export const tacticTechniques = {
+  'Initial Access': ['T1078.001', 'T1078.002', 'T1110.001', 'T1566.001'],
+  'Execution': ['T1059.001', 'T1059.003', 'T1204.002'],
+  'Persistence': ['T1053.005', 'T1547.001', 'T1543.003'],
+  'Privilege Escalation': ['T1548.002'],
+  'Defense Evasion': ['T1070.001', 'T1562.001', 'T1027'],
+  'Credential Access': ['T1003.001', 'T1003.003', 'T1558.003'],
+  'Discovery': ['T1087.001', 'T1087.002', 'T1046', 'T1082', 'T1083'],
+  'Lateral Movement': ['T1021.001', 'T1021.002', 'T1021.006', 'T1570'],
+  'Collection': ['T1005', 'T1039', 'T1114.002'],
+  'Command and Control': ['T1071.001', 'T1105', 'T1573.002'],
+  'Exfiltration': ['T1048.003', 'T1567.002'],
+  'Impact': ['T1486', 'T1490'],
+};
+
+// Helper function to get all techniques from validation test library
+export const getValidationTechniques = () => {
+  return [...new Set(validationTestLibrary.map(t => t.technique))];
+};
+
+// Helper function to get techniques by tactic from validation tests
+export const getTestsByTactic = (tactic) => {
+  return validationTestLibrary.filter(t => t.tactic === tactic);
+};
+
+// Helper function to calculate MITRE coverage from sources
+export const calculateMitreCoverage = (sources) => {
+  // Collect all data sources provided by collected/partial log sources
+  const providedDataSources = new Set();
+  
+  sources
+    .filter(s => s.status === 'collected' || s.status === 'partial')
+    .forEach(source => {
+      const categoryDS = categoryToDataSources[source.category] || [];
+      categoryDS.forEach(ds => providedDataSources.add(ds));
+    });
+  
+  // Calculate technique coverage
+  const techniqueCoverage = {};
+  Object.entries(techniqueToDataSources).forEach(([technique, requiredDS]) => {
+    const covered = requiredDS.filter(ds => providedDataSources.has(ds));
+    const coverage = requiredDS.length > 0 ? (covered.length / requiredDS.length) * 100 : 0;
+    techniqueCoverage[technique] = {
+      required: requiredDS,
+      covered: covered,
+      percentage: Math.round(coverage),
+      status: coverage >= 100 ? 'full' : coverage >= 50 ? 'partial' : 'none'
+    };
+  });
+  
+  return {
+    dataSourcesProvided: [...providedDataSources],
+    techniqueCoverage,
+    summary: {
+      totalTechniques: Object.keys(techniqueToDataSources).length,
+      fullyCovered: Object.values(techniqueCoverage).filter(t => t.status === 'full').length,
+      partiallyCovered: Object.values(techniqueCoverage).filter(t => t.status === 'partial').length,
+      notCovered: Object.values(techniqueCoverage).filter(t => t.status === 'none').length,
+    }
+  };
+};
+
+// Helper function to get MITRE coverage for a specific source
+export const getSourceMitreCoverage = (source) => {
+  const dataSourceIds = categoryToDataSources[source.category] || [];
+  const dataSources = dataSourceIds.map(id => mitreDataSources.find(ds => ds.id === id)).filter(Boolean);
+  
+  // Find techniques this source helps detect
+  const techniques = [];
+  Object.entries(techniqueToDataSources).forEach(([technique, requiredDS]) => {
+    if (requiredDS.some(ds => dataSourceIds.includes(ds))) {
+      const test = validationTestLibrary.find(t => t.technique === technique);
+      techniques.push({
+        id: technique,
+        name: test?.techniqueName || technique,
+        tactic: test?.tactic || 'Unknown',
+        contributingDS: requiredDS.filter(ds => dataSourceIds.includes(ds))
+      });
+    }
+  });
+  
+  return {
+    dataSources,
+    techniques,
+    tacticsCovered: [...new Set(techniques.map(t => t.tactic))]
+  };
+};
+
+// Get recommended log sources for missing MITRE coverage
+export const getRecommendedSources = (sources, targetTechnique) => {
+  const requiredDS = techniqueToDataSources[targetTechnique] || [];
+  
+  // Find which data sources we're missing
+  const providedDS = new Set();
+  sources
+    .filter(s => s.status === 'collected' || s.status === 'partial')
+    .forEach(source => {
+      const categoryDS = categoryToDataSources[source.category] || [];
+      categoryDS.forEach(ds => providedDS.add(ds));
+    });
+  
+  const missingDS = requiredDS.filter(ds => !providedDS.has(ds));
+  
+  // Find data source details and recommended log sources
+  const recommendations = missingDS.map(dsId => {
+    const dataSource = mitreDataSources.find(ds => ds.id === dsId);
+    return {
+      dataSourceId: dsId,
+      dataSourceName: dataSource?.name || dsId,
+      description: dataSource?.description,
+      recommendedCategories: dataSource?.logSourceCategories || [],
+      exampleSources: dataSource?.logSourceExamples || []
+    };
+  });
+  
+  return recommendations;
+};

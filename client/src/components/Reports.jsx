@@ -30,7 +30,11 @@ import {
   statusOptions,
   criticalityTierOptions,
   defaultTagOptions,
-  validationTestLibrary
+  validationTestLibrary,
+  mitreTactics,
+  mitreDataSources,
+  calculateMitreCoverage,
+  techniqueToDataSources
 } from '../constants';
 
 function Reports({ sources, assessments, validationTests }) {
@@ -133,6 +137,9 @@ function Reports({ sources, assessments, validationTests }) {
       }
     });
 
+    // Calculate MITRE ATT&CK coverage from log sources
+    const mitreCoverage = calculateMitreCoverage(sources);
+
     return {
       totalSources,
       collectedSources,
@@ -152,7 +159,8 @@ function Reports({ sources, assessments, validationTests }) {
       detectionRate,
       testCoverage,
       mitreCategories,
-      resultsMap
+      resultsMap,
+      mitreCoverage
     };
   }, [sources, assessments, validationTests]);
 

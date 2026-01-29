@@ -5,11 +5,12 @@ import {
   Clock, 
   XCircle,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
-import { assessmentQuestions } from '../constants';
+import { assessmentQuestions, calculateMitreCoverage, validationTestLibrary } from '../constants';
 
-function Dashboard({ stats, sources, assessments }) {
+function Dashboard({ stats, sources, assessments, validationTests }) {
   // Calculate assessment progress by category
   const assessmentByCategory = assessmentQuestions.reduce((acc, q) => {
     if (!acc[q.category]) {
@@ -26,6 +27,18 @@ function Dashboard({ stats, sources, assessments }) {
     return acc;
   }, {});
 
+  // Calculate MITRE coverage
+  const mitreCoverage = calculateMitreCoverage(sources);
+  
+  // Calculate validation progress
+  const validationProgress = {
+    total: validationTestLibrary.length,
+    tested: (validationTests || []).length,
+    passed: (validationTests || []).filter(t => t.logCaptured && t.detectionFired).length,
+    partial: (validationTests || []).filter(t => t.logCaptured && !t.detectionFired).length,
+    failed: (validationTests || []).filter(t => !t.logCaptured).length,
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Page header */}
@@ -35,7 +48,7 @@ function Dashboard({ stats, sources, assessments }) {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard
           title="Total Sources"
           value={stats.totalSources}
@@ -55,6 +68,13 @@ function Dashboard({ stats, sources, assessments }) {
           subtitle={`${stats.notCollected} not collected, ${stats.blocked} blocked`}
           icon={AlertCircle}
           color="red"
+        />
+        <StatCard
+          title="MITRE Coverage"
+          value={`${Math.round((mitreCoverage.summary.fullyCovered / mitreCoverage.summary.totalTechniques) * 100)}%`}
+          subtitle={`${mitreCoverage.summary.fullyCovered}/${mitreCoverage.summary.totalTechniques} techniques`}
+          icon={Shield}
+          color="purple"
         />
         <StatCard
           title="Assessment Score"
@@ -79,6 +99,41 @@ function Dashboard({ stats, sources, assessments }) {
           </div>
         </div>
 
+        {/* MITRE ATT&CK Coverage */}
+        <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+            <Shield className="h-4 w-4 text-red-500" />
+            MITRE ATT&CK Coverage
+          </h3>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+              <div className="text-lg font-bold text-green-600 dark:text-green-400">{mitreCoverage.summary.fullyCovered}</div>
+              <div className="text-[10px] text-green-700 dark:text-green-300">Covered</div>
+            </div>
+            <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+              <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{mitreCoverage.summary.partiallyCovered}</div>
+              <div className="text-[10px] text-yellow-700 dark:text-yellow-300">Partial</div>
+            </div>
+            <div className="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
+              <div className="text-lg font-bold text-red-600 dark:text-red-400">{mitreCoverage.summary.notCovered}</div>
+              <div className="text-[10px] text-red-700 dark:text-red-300">Gaps</div>
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center justify-between">
+              <span>Data Sources Provided:</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{mitreCoverage.dataSourcesProvided.length}</span>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span>Validation Tests Run:</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{validationProgress.tested}/{validationProgress.total}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Assessment and Validation row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Assessment by category */}
         <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Assessment by Category</h3>
@@ -101,6 +156,17 @@ function Dashboard({ stats, sources, assessments }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* Validation Progress */}
+        <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Validation Progress</h3>
+          <div className="space-y-3">
+            <StatusBar label="Passed" count={validationProgress.passed} total={validationProgress.total} color="green" />
+            <StatusBar label="Partial" count={validationProgress.partial} total={validationProgress.total} color="yellow" />
+            <StatusBar label="Failed" count={validationProgress.failed} total={validationProgress.total} color="red" />
+            <StatusBar label="Not Tested" count={validationProgress.total - validationProgress.tested} total={validationProgress.total} color="gray" />
           </div>
         </div>
       </div>
@@ -165,6 +231,7 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
     blue: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
     green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
     red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+    purple: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
     orange: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
   };
 
