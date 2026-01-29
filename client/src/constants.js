@@ -376,6 +376,111 @@ export const categoryOptions = [
   'Other',
 ];
 
+// Default tags for log sources
+export const defaultTagOptions = [
+  { value: 'critical-asset', label: 'Critical Asset', color: 'red' },
+  { value: 'compliance-required', label: 'Compliance Required', color: 'purple' },
+  { value: 'pci-dss', label: 'PCI-DSS', color: 'blue' },
+  { value: 'hipaa', label: 'HIPAA', color: 'blue' },
+  { value: 'sox', label: 'SOX', color: 'blue' },
+  { value: 'gdpr', label: 'GDPR', color: 'blue' },
+  { value: 'cloud', label: 'Cloud', color: 'cyan' },
+  { value: 'on-prem', label: 'On-Premise', color: 'gray' },
+  { value: 'legacy', label: 'Legacy', color: 'orange' },
+  { value: 'new', label: 'New', color: 'green' },
+  { value: 'high-volume', label: 'High Volume', color: 'yellow' },
+  { value: 'low-volume', label: 'Low Volume', color: 'gray' },
+  { value: 'needs-review', label: 'Needs Review', color: 'orange' },
+  { value: 'validated', label: 'Validated', color: 'green' },
+  { value: 'deprecated', label: 'Deprecated', color: 'red' },
+];
+
+// Compliance frameworks
+export const complianceFrameworks = [
+  { 
+    id: 'pci-dss', 
+    name: 'PCI-DSS', 
+    description: 'Payment Card Industry Data Security Standard',
+    requirements: [
+      { id: 'pci-10.1', name: '10.1', description: 'Implement audit trails to link all access to system components to each individual user' },
+      { id: 'pci-10.2', name: '10.2', description: 'Implement automated audit trails for all system components' },
+      { id: 'pci-10.3', name: '10.3', description: 'Record audit trail entries for all system components for each event' },
+      { id: 'pci-10.5', name: '10.5', description: 'Secure audit trails so they cannot be altered' },
+      { id: 'pci-10.7', name: '10.7', description: 'Retain audit trail history for at least one year' },
+    ]
+  },
+  { 
+    id: 'hipaa', 
+    name: 'HIPAA', 
+    description: 'Health Insurance Portability and Accountability Act',
+    requirements: [
+      { id: 'hipaa-164.312-b', name: '164.312(b)', description: 'Audit controls - hardware, software, and/or procedural mechanisms to record and examine activity' },
+      { id: 'hipaa-164.308-a1', name: '164.308(a)(1)', description: 'Security Management Process - implement policies and procedures' },
+      { id: 'hipaa-164.312-d', name: '164.312(d)', description: 'Person or entity authentication' },
+    ]
+  },
+  { 
+    id: 'sox', 
+    name: 'SOX', 
+    description: 'Sarbanes-Oxley Act',
+    requirements: [
+      { id: 'sox-302', name: 'Section 302', description: 'Corporate responsibility for financial reports' },
+      { id: 'sox-404', name: 'Section 404', description: 'Management assessment of internal controls' },
+    ]
+  },
+  { 
+    id: 'nist-csf', 
+    name: 'NIST CSF', 
+    description: 'NIST Cybersecurity Framework',
+    requirements: [
+      { id: 'nist-de.ae', name: 'DE.AE', description: 'Anomalies and Events - Anomalous activity is detected' },
+      { id: 'nist-de.cm', name: 'DE.CM', description: 'Security Continuous Monitoring' },
+      { id: 'nist-pr.ds', name: 'PR.DS', description: 'Data Security - Information is protected' },
+      { id: 'nist-rs.an', name: 'RS.AN', description: 'Analysis - Investigation and forensics conducted' },
+    ]
+  },
+];
+
+// Onboarding checklist steps
+export const onboardingSteps = [
+  {
+    id: 'identify',
+    title: 'Identify Source',
+    description: 'Define the log source and its characteristics',
+    fields: ['name', 'category', 'description', 'logType'],
+  },
+  {
+    id: 'ownership',
+    title: 'Assign Ownership',
+    description: 'Determine who is responsible for this log source',
+    fields: ['ownerTeam', 'ownerContact', 'criticalityTier'],
+  },
+  {
+    id: 'compliance',
+    title: 'Compliance & Tags',
+    description: 'Tag for compliance requirements and categorization',
+    fields: ['tags', 'retention'],
+  },
+  {
+    id: 'technical',
+    title: 'Technical Configuration',
+    description: 'Document collection method and requirements',
+    fields: ['collectionMethod', 'networkRequirements', 'credentials'],
+  },
+  {
+    id: 'validation',
+    title: 'Validation Plan',
+    description: 'Plan for validating log collection',
+    fields: ['validationPlan', 'expectedFields', 'sampleQuery'],
+  },
+  {
+    id: 'review',
+    title: 'Review & Submit',
+    description: 'Review all information and create the source',
+    fields: [],
+  },
+];
+
 // Log type options
 export const logTypeOptions = [
   { value: 'syslog', label: 'Syslog' },

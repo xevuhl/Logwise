@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CheckCircle, Circle, AlertCircle, HelpCircle, ChevronDown, ChevronRight, Link } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { CheckCircle, Circle, AlertCircle, HelpCircle, ChevronDown, ChevronRight, Link, X, Plus } from 'lucide-react';
 import { assessmentQuestions, assessmentResponseOptions } from '../constants';
 
 function Assessment({ assessments, onSave, sources }) {
@@ -46,6 +46,7 @@ function Assessment({ assessments, onSave, sources }) {
       await onSave(questionId, {
         response,
         notes: assessments[questionId]?.notes || '',
+        linkedSources: assessments[questionId]?.linkedSources || [],
         updatedAt: new Date().toISOString()
       });
     } finally {
@@ -57,6 +58,16 @@ function Assessment({ assessments, onSave, sources }) {
     await onSave(questionId, {
       response: assessments[questionId]?.response || '',
       notes,
+      linkedSources: assessments[questionId]?.linkedSources || [],
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  async function handleLinkedSources(questionId, linkedSources) {
+    await onSave(questionId, {
+      response: assessments[questionId]?.response || '',
+      notes: assessments[questionId]?.notes || '',
+      linkedSources,
       updatedAt: new Date().toISOString()
     });
   }
@@ -173,25 +184,15 @@ function Assessment({ assessments, onSave, sources }) {
                               />
                             </div>
 
-                            {/* Related sources */}
-                            {relatedSources.length > 0 && (
-                              <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-                                <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mb-1.5">
-                                  <Link className="h-3.5 w-3.5" />
-                                  Related Log Sources
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {relatedSources.map(source => (
-                                    <span 
-                                      key={source.id}
-                                      className="px-1.5 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-[10px] text-gray-700 dark:text-gray-300"
-                                    >
-                                      {source.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            {/* Linked Log Sources - Multi-select */}
+                            <div className="mt-3">
+                              <LinkedSourcesSelect
+                                sources={sources}
+                                selectedSources={response?.linkedSources || []}
+                                onChange={(linkedSources) => handleLinkedSources(question.id, linkedSources)}
+                                suggestedSources={relatedSources}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -292,6 +293,215 @@ function calculateScore(assessments) {
   });
   
   return maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+}
+
+function LinkedSourcesSelect({ sources, selectedSources, onChange, suggestedSources = [] }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter sources based on search
+  const filteredSources = sources.filter(source =>
+    source.name.toLowerCase().includes(search.toLowerCase()) ||
+    source.category?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Group sources by category
+  const groupedSources = filteredSources.reduce((acc, source) => {
+    const category = source.category || 'Uncategorized';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(source);
+    return acc;
+  }, {});
+
+  // Filter suggested sources that aren't already selected
+  const unselectedSuggestions = suggestedSources.filter(
+    source => !selectedSources.includes(source.id)
+  );
+
+  const handleToggleSource = (sourceId) => {
+    if (selectedSources.includes(sourceId)) {
+      onChange(selectedSources.filter(id => id !== sourceId));
+    } else {
+      onChange([...selectedSources, sourceId]);
+    }
+  };
+
+  const handleRemoveSource = (sourceId, e) => {
+    e.stopPropagation();
+    onChange(selectedSources.filter(id => id !== sourceId));
+  };
+
+  // Get source details for selected sources
+  const selectedSourceDetails = selectedSources
+    .map(id => sources.find(s => s.id === id))
+    .filter(Boolean);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+        <Link className="h-3 w-3 inline mr-1" />
+        Linked Log Sources
+      </label>
+      
+      {/* Selected sources display / trigger */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="min-h-[38px] px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded cursor-pointer hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+      >
+        {selectedSourceDetails.length === 0 ? (
+          <span className="text-xs text-gray-500 dark:text-gray-400">Click to link log sources...</span>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedSourceDetails.map(source => (
+              <span
+                key={source.id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded text-xs"
+              >
+                {source.name}
+                <button
+                  onClick={(e) => handleRemoveSource(source.id, e)}
+                  className="hover:text-primary-900 dark:hover:text-primary-200"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg max-h-72 overflow-hidden">
+          {/* Search */}
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search sources..."
+              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              autoFocus
+            />
+          </div>
+
+          {/* Source list */}
+          <div className="max-h-52 overflow-y-auto">
+            {/* Suggested sources section */}
+            {unselectedSuggestions.length > 0 && !search && (
+              <div>
+                <div className="px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-xs font-medium text-yellow-700 dark:text-yellow-400 sticky top-0 flex items-center gap-1">
+                  <span>⭐</span> Suggested for this question
+                </div>
+                {unselectedSuggestions.map(source => {
+                  const isSelected = selectedSources.includes(source.id);
+                  return (
+                    <label
+                      key={`suggested-${source.id}`}
+                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-yellow-50 dark:hover:bg-yellow-900/10 transition-colors ${
+                        isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSource(source.id)}
+                        className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                      />
+                      <span className={`text-xs flex-1 ${isSelected ? 'text-primary-700 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
+                        {source.name}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                        source.status === 'collected'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                          : source.status === 'partial'
+                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                            : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {source.status}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* All sources by category */}
+            {Object.keys(groupedSources).length === 0 ? (
+              <div className="p-3 text-xs text-gray-500 dark:text-gray-400 text-center">
+                No sources found
+              </div>
+            ) : (
+              Object.entries(groupedSources).map(([category, categorySources]) => (
+                <div key={category}>
+                  <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 text-xs font-medium text-gray-600 dark:text-gray-400 sticky top-0">
+                    {category}
+                  </div>
+                  {categorySources.map(source => {
+                    const isSelected = selectedSources.includes(source.id);
+                    return (
+                      <label
+                        key={source.id}
+                        className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                          isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSource(source.id)}
+                          className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                        />
+                        <span className={`text-xs flex-1 ${isSelected ? 'text-primary-700 dark:text-primary-400 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
+                          {source.name}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                          source.status === 'collected'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                            : source.status === 'partial'
+                              ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                              : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {source.status}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {selectedSources.length} selected
+              </span>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="px-2 py-1 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default Assessment;

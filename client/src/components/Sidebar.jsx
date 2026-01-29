@@ -5,7 +5,8 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
-  FlaskConical
+  FlaskConical,
+  FileBarChart
 } from 'lucide-react';
 
 const navItems = [
@@ -13,7 +14,8 @@ const navItems = [
   { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '2' },
   { id: 'inventory', label: 'Inventory', icon: Database, shortcut: '3' },
   { id: 'validation', label: 'Validation', icon: FlaskConical, shortcut: '4' },
-  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '5' },
+  { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '5' },
+  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '6' },
 ];
 
 function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {

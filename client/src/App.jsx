@@ -7,6 +7,8 @@ import Assessment from './components/Assessment';
 import Inventory from './components/Inventory';
 import AuditLog from './components/AuditLog';
 import Validation from './components/Validation';
+import Reports from './components/Reports';
+import Onboarding from './components/Onboarding';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -19,6 +21,7 @@ function App() {
   // Navigation state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Data state
   const [sources, setSources] = useState([]);
@@ -91,7 +94,8 @@ function App() {
       if (e.key === '2') setActiveTab('assessment');
       if (e.key === '3') setActiveTab('inventory');
       if (e.key === '4') setActiveTab('validation');
-      if (e.key === '5') setActiveTab('audit');
+      if (e.key === '5') setActiveTab('reports');
+      if (e.key === '6') setActiveTab('audit');
       if (e.key === 'd') setDarkMode(prev => !prev);
     }
 
@@ -351,6 +355,7 @@ function App() {
               onDelete={handleDeleteSource}
               onBulkImport={handleBulkImport}
               savedViews={savedViews}
+              onOpenOnboarding={() => setShowOnboarding(true)}
             />
           )}
           
@@ -366,11 +371,28 @@ function App() {
             />
           )}
           
+          {activeTab === 'reports' && (
+            <Reports
+              sources={sources}
+              assessments={assessments}
+              validationTests={validationTests}
+            />
+          )}
+          
           {activeTab === 'audit' && (
             <AuditLog entries={auditLog} />
           )}
         </main>
       </div>
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <Onboarding
+          sources={sources}
+          onCreate={handleCreateSource}
+          onClose={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }

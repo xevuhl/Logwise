@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -15,19 +15,30 @@ import {
   Mail,
   Clock,
   Database,
-  Shield
+  Shield,
+  Tag
 } from 'lucide-react';
-import { statusOptions, categoryOptions, assessmentQuestions, logTypeOptions, criticalityTierOptions, retentionOptions } from '../constants';
+import { statusOptions, categoryOptions, assessmentQuestions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions } from '../constants';
 
-function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews }) {
+function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('all');
   const [expandedId, setExpandedId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Get all used tags from sources
+  const allUsedTags = useMemo(() => {
+    const tags = new Set();
+    sources.forEach(source => {
+      (source.tags || []).forEach(tag => tags.add(tag));
+    });
+    return [...tags];
+  }, [sources]);
 
   // Filter sources
   const filteredSources = useMemo(() => {
@@ -37,14 +48,16 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         source.category?.toLowerCase().includes(search.toLowerCase()) ||
         source.description?.toLowerCase().includes(search.toLowerCase()) ||
         source.ownerTeam?.toLowerCase().includes(search.toLowerCase()) ||
-        source.notes?.toLowerCase().includes(search.toLowerCase());
+        source.notes?.toLowerCase().includes(search.toLowerCase()) ||
+        (source.tags || []).some(tag => tag.toLowerCase().includes(search.toLowerCase()));
       
       const matchesStatus = statusFilter === 'all' || source.status === statusFilter;
       const matchesCategory = categoryFilter === 'all' || source.category === categoryFilter;
+      const matchesTag = tagFilter === 'all' || (source.tags || []).includes(tagFilter);
       
-      return matchesSearch && matchesStatus && matchesCategory;
+      return matchesSearch && matchesStatus && matchesCategory && matchesTag;
     });
-  }, [sources, search, statusFilter, categoryFilter]);
+  }, [sources, search, statusFilter, categoryFilter, tagFilter]);
 
   // Get unique categories from sources
   const usedCategories = [...new Set(sources.map(s => s.category).filter(Boolean))];
@@ -67,12 +80,21 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
             <Upload className="h-3.5 w-3.5" />
             Import
           </button>
+          {onOpenOnboarding && (
+            <button
+              onClick={onOpenOnboarding}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Wizard
+            </button>
+          )}
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Source
+            Quick Add
           </button>
         </div>
       </div>
@@ -112,6 +134,20 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
           {allCategories.map(cat => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
+        </select>
+        
+        <select
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="all">All Tags</option>
+          {allUsedTags.map(tag => {
+            const tagOption = defaultTagOptions.find(t => t.value === tag);
+            return (
+              <option key={tag} value={tag}>{tagOption?.label || tag}</option>
+            );
+          })}
         </select>
       </div>
 
@@ -235,6 +271,27 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
               </>
             )}
           </div>
+          {/* Tags display */}
+          {source.tags && source.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {source.tags.slice(0, 3).map(tag => {
+                const tagOption = defaultTagOptions.find(t => t.value === tag);
+                return (
+                  <span 
+                    key={tag} 
+                    className={`px-1.5 py-0.5 rounded text-[10px] ${getTagColorClass(tagOption?.color || 'gray')}`}
+                  >
+                    {tagOption?.label || tag}
+                  </span>
+                );
+              })}
+              {source.tags.length > 3 && (
+                <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] text-gray-500 dark:text-gray-400">
+                  +{source.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {source.criticalityTier && (
@@ -468,6 +525,18 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           </select>
         </div>
       </div>
+
+      {/* Tags */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <Tag className="h-3.5 w-3.5 inline mr-1" />
+          Tags
+        </label>
+        <TagSelector
+          selectedTags={formData.tags || []}
+          onChange={(tags) => setFormData({ ...formData, tags })}
+        />
+      </div>
       
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
@@ -496,6 +565,126 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+// Helper function for tag colors
+function getTagColorClass(color) {
+  const colorMap = {
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+    pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+    indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400',
+    cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400',
+    teal: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
+    gray: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400',
+  };
+  return colorMap[color] || colorMap.gray;
+}
+
+// Tag Selector Component
+function TagSelector({ selectedTags, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [customTag, setCustomTag] = useState('');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleTag = (tagValue) => {
+    if (selectedTags.includes(tagValue)) {
+      onChange(selectedTags.filter(t => t !== tagValue));
+    } else {
+      onChange([...selectedTags, tagValue]);
+    }
+  };
+
+  const addCustomTag = () => {
+    if (customTag.trim() && !selectedTags.includes(customTag.trim())) {
+      onChange([...selectedTags, customTag.trim()]);
+      setCustomTag('');
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-left text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+      >
+        {selectedTags.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {selectedTags.map(tag => {
+              const tagOption = defaultTagOptions.find(t => t.value === tag);
+              return (
+                <span 
+                  key={tag} 
+                  className={`px-1.5 py-0.5 rounded text-xs ${getTagColorClass(tagOption?.color || 'gray')}`}
+                >
+                  {tagOption?.label || tag}
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="text-gray-500">Select tags...</span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg max-h-64 overflow-y-auto">
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customTag}
+                onChange={(e) => setCustomTag(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
+                placeholder="Add custom tag..."
+                className="flex-1 px-2 py-1 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500"
+              />
+              <button
+                type="button"
+                onClick={addCustomTag}
+                className="px-2 py-1 text-xs bg-primary-500 text-white rounded hover:bg-primary-600"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+          <div className="p-1">
+            {defaultTagOptions.map(tag => (
+              <label
+                key={tag.value}
+                className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTags.includes(tag.value)}
+                  onChange={() => toggleTag(tag.value)}
+                  className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                />
+                <span className={`px-1.5 py-0.5 rounded text-xs ${getTagColorClass(tag.color)}`}>
+                  {tag.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -545,7 +734,8 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
     logType: '',
     criticalityTier: '',
     retention: '',
-    notes: ''
+    notes: '',
+    tags: []
   });
   const [saving, setSaving] = useState(false);
 
@@ -689,6 +879,18 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <Tag className="h-3.5 w-3.5 inline mr-1" />
+            Tags
+          </label>
+          <TagSelector
+            selectedTags={formData.tags || []}
+            onChange={(tags) => setFormData({ ...formData, tags })}
+          />
         </div>
         
         <div>
