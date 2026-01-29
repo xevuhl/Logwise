@@ -6,8 +6,8 @@ WORKDIR /app/client
 # Copy client package files
 COPY client/package*.json ./
 
-# Install client dependencies
-RUN npm install
+# Install all client dependencies including devDependencies (needed for Vite build)
+RUN npm install --include=dev
 
 # Copy client source
 COPY client/ ./
