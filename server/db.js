@@ -398,4 +398,52 @@ export const relationships = {
   }
 };
 
+// ============ TARGETS (Ingestion Destinations) ============
+
+export const targets = {
+  getAll() {
+    return readData('targets.json');
+  },
+  
+  getById(id) {
+    const all = this.getAll();
+    return all.find(t => t.id === id);
+  },
+  
+  create(target) {
+    const all = this.getAll();
+    const newTarget = {
+      id: generateId(),
+      ...target,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    all.push(newTarget);
+    writeData('targets.json', all);
+    return newTarget;
+  },
+  
+  update(id, updates) {
+    const all = this.getAll();
+    const index = all.findIndex(t => t.id === id);
+    if (index === -1) return null;
+    
+    all[index] = {
+      ...all[index],
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('targets.json', all);
+    return all[index];
+  },
+  
+  delete(id) {
+    let all = this.getAll();
+    all = all.filter(t => t.id !== id);
+    writeData('targets.json', all);
+    return true;
+  }
+};
+
 console.log('Data storage initialized at:', DATA_DIR);

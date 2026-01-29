@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -10,6 +10,7 @@ import Validation from './components/Validation';
 import Reports from './components/Reports';
 import Onboarding from './components/Onboarding';
 import Relationships from './components/Relationships';
+import Targets from './components/Targets';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
   const [validationTests, setValidationTests] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [relationships, setRelationships] = useState([]);
+  const [targets, setTargets] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +52,13 @@ function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, auditData, viewsData] = await Promise.all([
+        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, targetsData, auditData, viewsData] = await Promise.all([
           sourcesAPI.getAll(),
           assessmentsAPI.getAll(),
           validationAPI.getAll(),
           campaignsAPI.getAll(),
           relationshipsAPI.getAll(),
+          targetsAPI.getAll(),
           auditAPI.getAll(),
           viewsAPI.getAll(),
         ]);
@@ -71,6 +74,7 @@ function App() {
         setValidationTests(validationData);
         setCampaigns(campaignsData);
         setRelationships(relationshipsData);
+        setTargets(targetsData);
         setAuditLog(auditData);
         setSavedViews(viewsData);
         setError(null);
@@ -96,11 +100,12 @@ function App() {
 
       if (e.key === '1') setActiveTab('dashboard');
       if (e.key === '2') setActiveTab('inventory');
-      if (e.key === '3') setActiveTab('relationships');
-      if (e.key === '4') setActiveTab('assessment');
-      if (e.key === '5') setActiveTab('validation');
-      if (e.key === '6') setActiveTab('reports');
-      if (e.key === '7') setActiveTab('audit');
+      if (e.key === '3') setActiveTab('targets');
+      if (e.key === '4') setActiveTab('relationships');
+      if (e.key === '5') setActiveTab('assessment');
+      if (e.key === '6') setActiveTab('validation');
+      if (e.key === '7') setActiveTab('reports');
+      if (e.key === '8') setActiveTab('audit');
       if (e.key === 'd') setDarkMode(prev => !prev);
     }
 
@@ -280,6 +285,45 @@ function App() {
     }
   }, []);
 
+  // Target operations
+  const handleCreateTarget = useCallback(async (target) => {
+    try {
+      const newTarget = await targetsAPI.create(target);
+      setTargets(prev => [...prev, newTarget]);
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return newTarget;
+    } catch (err) {
+      console.error('Failed to create target:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleUpdateTarget = useCallback(async (id, updates) => {
+    try {
+      const updated = await targetsAPI.update(id, updates);
+      setTargets(prev => prev.map(t => t.id === id ? updated : t));
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return updated;
+    } catch (err) {
+      console.error('Failed to update target:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleDeleteTarget = useCallback(async (id) => {
+    try {
+      await targetsAPI.delete(id);
+      setTargets(prev => prev.filter(t => t.id !== id));
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+    } catch (err) {
+      console.error('Failed to delete target:', err);
+      throw err;
+    }
+  }, []);
+
   // Export data
   const handleExport = useCallback(async () => {
     try {
@@ -430,6 +474,17 @@ function App() {
               onCreate={handleCreateRelationship}
               onUpdate={handleUpdateRelationship}
               onDelete={handleDeleteRelationship}
+            />
+          )}
+          
+          {activeTab === 'targets' && (
+            <Targets
+              targets={targets}
+              sources={sources}
+              relationships={relationships}
+              onCreate={handleCreateTarget}
+              onUpdate={handleUpdateTarget}
+              onDelete={handleDeleteTarget}
             />
           )}
           

@@ -160,3 +160,25 @@ export const relationshipsAPI = {
     method: 'DELETE',
   }),
 };
+
+// ============ TARGETS ============
+
+export const targetsAPI = {
+  getAll: () => fetchAPI('/targets'),
+  
+  getById: (id) => fetchAPI(`/targets/${id}`),
+  
+  create: (target) => fetchAPI('/targets', {
+    method: 'POST',
+    body: JSON.stringify(target),
+  }),
+  
+  update: (id, target) => fetchAPI(`/targets/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(target),
+  }),
+  
+  delete: (id) => fetchAPI(`/targets/${id}`, {
+    method: 'DELETE',
+  }),
+};

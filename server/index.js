@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -449,6 +449,77 @@ app.delete('/api/relationships/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting relationship:', error);
     res.status(500).json({ error: 'Failed to delete relationship' });
+  }
+});
+
+// ============ TARGETS API ============
+
+// Get all targets
+app.get('/api/targets', (req, res) => {
+  try {
+    const allTargets = targets.getAll();
+    res.json(allTargets);
+  } catch (error) {
+    console.error('Error fetching targets:', error);
+    res.status(500).json({ error: 'Failed to fetch targets' });
+  }
+});
+
+// Get single target
+app.get('/api/targets/:id', (req, res) => {
+  try {
+    const target = targets.getById(req.params.id);
+    if (!target) {
+      return res.status(404).json({ error: 'Target not found' });
+    }
+    res.json(target);
+  } catch (error) {
+    console.error('Error fetching target:', error);
+    res.status(500).json({ error: 'Failed to fetch target' });
+  }
+});
+
+// Create target
+app.post('/api/targets', (req, res) => {
+  try {
+    const newTarget = targets.create(req.body);
+    auditLog.add('target_created', `Target created: ${newTarget.name}`);
+    res.status(201).json(newTarget);
+  } catch (error) {
+    console.error('Error creating target:', error);
+    res.status(500).json({ error: 'Failed to create target' });
+  }
+});
+
+// Update target
+app.put('/api/targets/:id', (req, res) => {
+  try {
+    const existing = targets.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Target not found' });
+    }
+    const updated = targets.update(req.params.id, req.body);
+    auditLog.add('target_updated', `Target updated: ${updated.name}`);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating target:', error);
+    res.status(500).json({ error: 'Failed to update target' });
+  }
+});
+
+// Delete target
+app.delete('/api/targets/:id', (req, res) => {
+  try {
+    const existing = targets.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Target not found' });
+    }
+    targets.delete(req.params.id);
+    auditLog.add('target_deleted', `Target deleted: ${existing.name}`);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting target:', error);
+    res.status(500).json({ error: 'Failed to delete target' });
   }
 });
 

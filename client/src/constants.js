@@ -436,6 +436,104 @@ export const categoryOptions = [
   'Other',
 ];
 
+// Target types (ingestion destinations)
+export const targetTypes = [
+  { 
+    value: 'siem', 
+    label: 'SIEM', 
+    description: 'Security Information and Event Management',
+    color: 'purple',
+    icon: 'Shield'
+  },
+  { 
+    value: 'soar', 
+    label: 'SOAR', 
+    description: 'Security Orchestration, Automation and Response',
+    color: 'orange',
+    icon: 'Zap'
+  },
+  { 
+    value: 'data-lake', 
+    label: 'Data Lake', 
+    description: 'Centralized data repository for analytics',
+    color: 'blue',
+    icon: 'Database'
+  },
+  { 
+    value: 'log-collector', 
+    label: 'Log Collector', 
+    description: 'Log aggregation and forwarding service',
+    color: 'cyan',
+    icon: 'Server'
+  },
+  { 
+    value: 'cloud-storage', 
+    label: 'Cloud Storage', 
+    description: 'Cloud-based storage (S3, Azure Blob, GCS)',
+    color: 'sky',
+    icon: 'Cloud'
+  },
+  { 
+    value: 'xdr', 
+    label: 'XDR', 
+    description: 'Extended Detection and Response platform',
+    color: 'red',
+    icon: 'Eye'
+  },
+  { 
+    value: 'edr', 
+    label: 'EDR', 
+    description: 'Endpoint Detection and Response',
+    color: 'green',
+    icon: 'Monitor'
+  },
+  { 
+    value: 'ndr', 
+    label: 'NDR', 
+    description: 'Network Detection and Response',
+    color: 'indigo',
+    icon: 'Network'
+  },
+  { 
+    value: 'ticketing', 
+    label: 'Ticketing System', 
+    description: 'Incident/ticket management system',
+    color: 'yellow',
+    icon: 'Ticket'
+  },
+  { 
+    value: 'archive', 
+    label: 'Archive', 
+    description: 'Long-term log archive storage',
+    color: 'gray',
+    icon: 'Archive'
+  },
+  { 
+    value: 'analytics', 
+    label: 'Analytics Platform', 
+    description: 'Business intelligence and analytics',
+    color: 'pink',
+    icon: 'BarChart'
+  },
+  { 
+    value: 'other', 
+    label: 'Other', 
+    description: 'Other destination type',
+    color: 'slate',
+    icon: 'Box'
+  },
+];
+
+// Target status options
+export const targetStatusOptions = [
+  { value: 'active', label: 'Active', color: 'green', description: 'Target is operational and receiving logs' },
+  { value: 'maintenance', label: 'Maintenance', color: 'yellow', description: 'Target is under maintenance' },
+  { value: 'degraded', label: 'Degraded', color: 'orange', description: 'Target is operational but with issues' },
+  { value: 'offline', label: 'Offline', color: 'red', description: 'Target is not operational' },
+  { value: 'planned', label: 'Planned', color: 'blue', description: 'Target is planned for future deployment' },
+  { value: 'decommissioned', label: 'Decommissioned', color: 'gray', description: 'Target is no longer in use' },
+];
+
 // Default tags for log sources
 export const defaultTagOptions = [
   { value: 'critical-asset', label: 'Critical Asset', color: 'red' },
