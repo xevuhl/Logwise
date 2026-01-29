@@ -576,10 +576,11 @@ function GraphView({
   );
 }
 
-function RelationshipModal({ relationship, sources, onClose, onSave }) {
+function RelationshipModal({ relationship, sources, targets, onClose, onSave }) {
   const [formData, setFormData] = useState(relationship || {
     sourceId: '',
     targetId: '',
+    targetType: 'source', // 'source' or 'target'
     type: 'feeds',
     description: '',
     dataFlow: '',
@@ -588,16 +589,31 @@ function RelationshipModal({ relationship, sources, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Handle destination selection (combined source + target dropdown)
+  const handleDestinationChange = (value) => {
+    if (!value) {
+      setFormData({ ...formData, targetId: '', targetType: 'source' });
+      return;
+    }
+    const [type, id] = value.split(':');
+    setFormData({ ...formData, targetId: id, targetType: type });
+  };
+
+  const getDestinationValue = () => {
+    if (!formData.targetId) return '';
+    return `${formData.targetType}:${formData.targetId}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.sourceId || !formData.targetId) {
-      setError('Please select both source and target');
+      setError('Please select both source and destination');
       return;
     }
     
-    if (formData.sourceId === formData.targetId) {
-      setError('Source and target cannot be the same');
+    if (formData.targetType === 'source' && formData.sourceId === formData.targetId) {
+      setError('Source and destination cannot be the same');
       return;
     }
     
@@ -637,7 +653,10 @@ function RelationshipModal({ relationship, sources, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Source *
+                <span className="flex items-center gap-1">
+                  <Database className="h-3.5 w-3.5" />
+                  Source *
+                </span>
               </label>
               <select
                 value={formData.sourceId}
@@ -656,21 +675,38 @@ function RelationshipModal({ relationship, sources, onClose, onSave }) {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Target *
+                Destination *
               </label>
               <select
-                value={formData.targetId}
-                onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
+                value={getDestinationValue()}
+                onChange={(e) => handleDestinationChange(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
-                <option value="">Select target...</option>
-                {sources.map(source => (
-                  <option key={source.id} value={source.id}>
-                    {source.name} ({source.category})
-                  </option>
-                ))}
+                <option value="">Select destination...</option>
+                {targets && targets.length > 0 && (
+                  <optgroup label="🎯 Targets (Ingestion Destinations)">
+                    {targets.map(target => {
+                      const targetTypeInfo = targetTypes.find(t => t.value === target.type);
+                      return (
+                        <option key={`target:${target.id}`} value={`target:${target.id}`}>
+                          {target.name} ({targetTypeInfo?.label || target.type})
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                )}
+                <optgroup label="📦 Log Sources">
+                  {sources.map(source => (
+                    <option key={`source:${source.id}`} value={`source:${source.id}`}>
+                      {source.name} ({source.category})
+                    </option>
+                  ))}
+                </optgroup>
               </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Select a Target (SIEM, data lake) or another Log Source
+              </p>
             </div>
           </div>
 
@@ -770,9 +806,12 @@ function RelationshipModal({ relationship, sources, onClose, onSave }) {
   );
 }
 
-function DeleteConfirmModal({ relationship, sourcesMap, onClose, onConfirm }) {
+function DeleteConfirmModal({ relationship, sourcesMap, targetsMap, onClose, onConfirm }) {
   const source = sourcesMap[relationship.sourceId];
-  const target = sourcesMap[relationship.targetId];
+  const isTargetDestination = relationship.targetType === 'target';
+  const destination = isTargetDestination 
+    ? targetsMap[relationship.targetId]
+    : sourcesMap[relationship.targetId];
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -791,10 +830,16 @@ function DeleteConfirmModal({ relationship, sourcesMap, onClose, onConfirm }) {
             Are you sure you want to delete the relationship between:
           </p>
           
-          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded text-sm mb-4">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded text-sm mb-4 flex items-center gap-2">
+            <Database className="h-4 w-4 text-blue-500" />
             <span className="font-medium text-gray-900 dark:text-white">{source?.name || 'Unknown'}</span>
             <span className="mx-2 text-gray-400">→</span>
-            <span className="font-medium text-gray-900 dark:text-white">{target?.name || 'Unknown'}</span>
+            {isTargetDestination ? (
+              <Target className="h-4 w-4 text-purple-500" />
+            ) : (
+              <Database className="h-4 w-4 text-blue-500" />
+            )}
+            <span className="font-medium text-gray-900 dark:text-white">{destination?.name || 'Unknown'}</span>
           </div>
           
           <div className="flex justify-end gap-2">

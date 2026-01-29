@@ -470,6 +470,7 @@ function App() {
           {activeTab === 'relationships' && (
             <Relationships
               sources={sources}
+              targets={targets}
               relationships={relationships}
               onCreate={handleCreateRelationship}
               onUpdate={handleUpdateRelationship}
