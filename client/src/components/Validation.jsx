@@ -25,7 +25,14 @@ import {
   ExternalLink,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Eye,
+  Terminal,
+  Bell,
+  BookOpen,
+  Code,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
 import { validationTestLibrary } from '../constants';
 import { validationAPI } from '../api';
@@ -611,6 +618,13 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
               </div>
             </div>
 
+            {/* Validation Guidance Section */}
+            {test.guidance && (
+              <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
+                <ValidationGuidance guidance={test.guidance} technique={test.technique} />
+              </div>
+            )}
+
             {test.result && (
               <>
                 <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
@@ -735,6 +749,114 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
               </>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ValidationGuidance({ guidance, technique }) {
+  const [expandedSection, setExpandedSection] = useState('whatToLookFor');
+  const [copiedQuery, setCopiedQuery] = useState(false);
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedQuery(true);
+      setTimeout(() => setCopiedQuery(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const sections = [
+    { id: 'whatToLookFor', label: 'What to Look For', icon: Eye, data: guidance.whatToLookFor },
+    { id: 'howToTest', label: 'How to Test', icon: Terminal, data: guidance.howToTest },
+    { id: 'expectedAlerts', label: 'Expected Alerts', icon: Bell, data: guidance.expectedAlerts },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <BookOpen className="h-4 w-4 text-primary-500" />
+        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Validation Guidance</span>
+        {guidance.atomicTestRef && (
+          <a 
+            href={guidance.atomicTestRef} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="ml-auto text-xs text-primary-500 hover:text-primary-600 flex items-center gap-1"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Atomic Red Team
+          </a>
+        )}
+      </div>
+
+      {/* Section Tabs */}
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        {sections.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setExpandedSection(id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+              expandedSection === id
+                ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 -mb-px'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Section Content */}
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+        {sections.map(({ id, data }) => (
+          expandedSection === id && (
+            <ul key={id} className="space-y-1.5">
+              {data?.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                  <span className="text-primary-500 mt-0.5">•</span>
+                  <span className={id === 'howToTest' ? 'font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded' : ''}>
+                    {item}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
+        ))}
+      </div>
+
+      {/* SIEM Query Example */}
+      {guidance.siemQueryExample && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+              <Code className="h-3 w-3" />
+              Example SIEM Query
+            </span>
+            <button
+              onClick={() => copyToClipboard(guidance.siemQueryExample)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-primary-500 transition-colors"
+            >
+              {copiedQuery ? (
+                <>
+                  <CheckCheck className="h-3 w-3 text-green-500" />
+                  <span className="text-green-500">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          <pre className="p-2.5 bg-gray-900 dark:bg-gray-950 rounded text-xs font-mono text-green-400 overflow-x-auto whitespace-pre-wrap">
+            {guidance.siemQueryExample}
+          </pre>
         </div>
       )}
     </div>
