@@ -31,8 +31,9 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRelationship, setEditingRelationship] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'graph'
+  const [viewMode, setViewMode] = useState('list'); // 'list', 'graph', or 'targets'
   const [expandedSource, setExpandedSource] = useState(null);
+  const [expandedTarget, setExpandedTarget] = useState(null);
 
   // Create a map of sources for quick lookup
   const sourcesMap = useMemo(() => {
@@ -94,6 +95,24 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
     });
     return grouped;
   }, [sources, relationships]);
+
+  // Group relationships by target (ingestion destinations)
+  const relationshipsByTarget = useMemo(() => {
+    const grouped = {};
+    // Only include relationships that go to targets
+    const targetRelationships = relationships.filter(r => r.targetType === 'target');
+    
+    (targets || []).forEach(target => {
+      const incoming = targetRelationships.filter(r => r.targetId === target.id);
+      if (incoming.length > 0) {
+        grouped[target.id] = {
+          target,
+          incoming
+        };
+      }
+    });
+    return grouped;
+  }, [targets, relationships]);
 
   // Count relationships to targets
   const targetRelationshipsCount = useMemo(() => {
@@ -186,7 +205,18 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
-              Graph
+              Sources
+            </button>
+            <button
+              onClick={() => setViewMode('targets')}
+              className={`px-3 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
+                viewMode === 'targets' 
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <Target className="h-3 w-3" />
+              Targets
             </button>
           </div>
           <button
@@ -360,8 +390,8 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
             </div>
           )}
         </div>
-      ) : (
-        /* Graph View */
+      ) : viewMode === 'graph' ? (
+        /* Sources Graph View */
         <GraphView
           sources={sources}
           targets={targets}
@@ -376,6 +406,23 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
           getTargetStatusColor={getTargetStatusColor}
           expandedSource={expandedSource}
           setExpandedSource={setExpandedSource}
+          onEdit={setEditingRelationship}
+          onDelete={setDeleteConfirm}
+        />
+      ) : (
+        /* Targets Graph View */
+        <TargetsGraphView
+          targets={targets}
+          sourcesMap={sourcesMap}
+          targetsMap={targetsMap}
+          relationshipsByTarget={relationshipsByTarget}
+          getTypeIcon={getTypeIcon}
+          getTypeColor={getTypeColor}
+          getColorClasses={getColorClasses}
+          getStatusColor={getStatusColor}
+          getTargetStatusColor={getTargetStatusColor}
+          expandedTarget={expandedTarget}
+          setExpandedTarget={setExpandedTarget}
           onEdit={setEditingRelationship}
           onDelete={setDeleteConfirm}
         />
@@ -570,6 +617,157 @@ function GraphView({
         <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-8 text-center">
           <Network className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
           <div className="text-gray-400 dark:text-gray-500 text-sm">No relationships to display</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TargetsGraphView({
+  targets,
+  sourcesMap,
+  targetsMap,
+  relationshipsByTarget,
+  getTypeIcon,
+  getTypeColor,
+  getColorClasses,
+  getStatusColor,
+  getTargetStatusColor,
+  expandedTarget,
+  setExpandedTarget,
+  onEdit,
+  onDelete
+}) {
+  return (
+    <div className="space-y-2">
+      {Object.entries(relationshipsByTarget).map(([targetId, data]) => {
+        const isExpanded = expandedTarget === targetId;
+        const target = data.target;
+        const targetTypeInfo = targetTypes.find(t => t.value === target.type);
+        const incomingCount = data.incoming.length;
+        
+        // Group incoming by relationship type for summary
+        const typeGroups = {};
+        data.incoming.forEach(rel => {
+          if (!typeGroups[rel.type]) {
+            typeGroups[rel.type] = [];
+          }
+          typeGroups[rel.type].push(rel);
+        });
+        
+        return (
+          <div 
+            key={targetId}
+            className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
+              onClick={() => setExpandedTarget(isExpanded ? null : targetId)}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                <Target className="h-4 w-4 text-purple-500" />
+                <div className={`w-3 h-3 rounded-full bg-${getTargetStatusColor(target.status)}-500`} />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{target.name}</span>
+                <span className="text-xs text-purple-500">({targetTypeInfo?.label || target.type})</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {incomingCount} {incomingCount === 1 ? 'feed' : 'feeds'}
+                </span>
+                <div className="flex items-center gap-1">
+                  {Object.entries(typeGroups).slice(0, 3).map(([type, rels]) => {
+                    const TypeIcon = getTypeIcon(type);
+                    const color = getTypeColor(type);
+                    return (
+                      <div key={type} className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border ${getColorClasses(color)}`}>
+                        <TypeIcon className="h-2.5 w-2.5" />
+                        <span>{rels.length}</span>
+                      </div>
+                    );
+                  })}
+                  {Object.keys(typeGroups).length > 3 && (
+                    <span className="text-[10px] text-gray-400">+{Object.keys(typeGroups).length - 3}</span>
+                  )}
+                </div>
+              </div>
+            </button>
+            
+            {isExpanded && (
+              <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Incoming Sources ({incomingCount})
+                </div>
+                <div className="space-y-2">
+                  {data.incoming.map(rel => {
+                    const source = sourcesMap[rel.sourceId];
+                    const TypeIcon = getTypeIcon(rel.type);
+                    const typeColor = getTypeColor(rel.type);
+                    const relType = relationshipTypes.find(t => t.value === rel.type);
+                    
+                    return (
+                      <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
+                        <Database className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        <div className={`w-2 h-2 rounded-full bg-${getStatusColor(source?.status)}-500 flex-shrink-0`} />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm text-gray-900 dark:text-white">{source?.name || 'Unknown'}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({source?.category})</span>
+                          {rel.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
+                          )}
+                        </div>
+                        <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
+                          <TypeIcon className="h-3 w-3" />
+                          {relType?.label}
+                        </div>
+                        {rel.dataFlow && (
+                          <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                            {rel.dataFlow}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                          <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Summary stats for this target */}
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(typeGroups).map(([type, rels]) => {
+                      const TypeIcon = getTypeIcon(type);
+                      const color = getTypeColor(type);
+                      const relType = relationshipTypes.find(t => t.value === type);
+                      return (
+                        <div key={type} className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border ${getColorClasses(color)}`}>
+                          <TypeIcon className="h-3 w-3" />
+                          <span>{relType?.label}: {rels.length}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      
+      {Object.keys(relationshipsByTarget).length === 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <Target className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+          <div className="text-gray-400 dark:text-gray-500 text-sm">No target feeds to display</div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Create relationships from sources to targets to see them here
+          </p>
         </div>
       )}
     </div>
