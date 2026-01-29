@@ -168,18 +168,12 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
     orange: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
   };
 
-  const isGradient = color === 'orange';
-
   return (
-    <div className={`rounded p-4 shadow-sm border ${
-      isGradient 
-        ? 'bg-gradient-brand-subtle border-purple-200 dark:border-purple-800' 
-        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-    }`}>
+    <div className="rounded p-4 shadow-sm border bg-gradient-brand-subtle border-purple-200 dark:border-purple-800">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-600 dark:text-gray-400">{title}</p>
-          <p className={`text-2xl font-bold mt-0.5 ${isGradient ? 'text-gradient-brand' : 'text-gray-900 dark:text-white'}`}>{value}</p>
+          <p className="text-2xl font-bold mt-0.5 text-gradient-brand">{value}</p>
           {subtitle && (
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{subtitle}</p>
           )}

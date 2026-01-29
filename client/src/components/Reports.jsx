@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   FileText,
   Download,
@@ -20,7 +20,8 @@ import {
   Activity,
   Eye,
   Settings,
-  Database
+  Database,
+  FileDown
 } from 'lucide-react';
 import { 
   assessmentQuestions, 
@@ -33,6 +34,7 @@ import {
 function Reports({ sources, assessments, validationTests }) {
   const [activeReport, setActiveReport] = useState('executive');
   const [expandedSections, setExpandedSections] = useState({});
+  const [showReportPreview, setShowReportPreview] = useState(false);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -187,7 +189,7 @@ function Reports({ sources, assessments, validationTests }) {
   }, [sources]);
 
   const handlePrint = () => {
-    window.print();
+    setShowReportPreview(true);
   };
 
   const handleExport = () => {
@@ -215,15 +217,64 @@ function Reports({ sources, assessments, validationTests }) {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportCSV = () => {
+    let csvContent = '';
+    
+    if (activeReport === 'coverage' || activeReport === 'executive') {
+      // Export sources as CSV
+      csvContent = 'Name,Category,Status,Criticality,Owner,Log Type,Retention,Tags\n';
+      sources.forEach(s => {
+        csvContent += `"${s.name || ''}","${s.category || ''}","${s.status || ''}","${s.criticalityTier || ''}","${s.ownerTeam || ''}","${s.logType || ''}","${s.retention || ''}","${(s.tags || []).join('; ')}"\n`;
+      });
+    } else if (activeReport === 'gap') {
+      // Export gaps as CSV
+      csvContent = 'Type,Name,Category,Status/Response,Details\n';
+      gaps.sourceGaps.forEach(s => {
+        csvContent += `"Source Gap","${s.name}","${s.category || ''}","${s.status}",""\n`;
+      });
+      gaps.assessmentGaps.forEach(q => {
+        const response = assessments?.[q.id];
+        csvContent += `"Assessment Gap","${q.question}","${q.category}","${response?.response || 'Not answered'}",""\n`;
+      });
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `logwise-${activeReport}-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const reportTypes = [
     { id: 'executive', label: 'Executive Summary', icon: Building2 },
     { id: 'gap', label: 'Gap Analysis', icon: AlertTriangle },
-    { id: 'compliance', label: 'Compliance Mapping', icon: Shield },
     { id: 'coverage', label: 'Inventory Report', icon: Database }
   ];
 
+  const getReportTitle = () => {
+    const type = reportTypes.find(r => r.id === activeReport);
+    return type?.label || 'Report';
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Report Preview Modal */}
+      {showReportPreview && (
+        <ReportPreviewModal
+          reportType={activeReport}
+          reportTitle={getReportTitle()}
+          metrics={metrics}
+          gaps={gaps}
+          sources={sources}
+          assessments={assessments}
+          assessmentByCategory={assessmentByCategory}
+          complianceStatus={complianceStatus}
+          onClose={() => setShowReportPreview(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -232,18 +283,27 @@ function Reports({ sources, assessments, validationTests }) {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors print:hidden"
+            title="Export as CSV"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            CSV
+          </button>
+          <button
             onClick={handlePrint}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors print:hidden"
           >
             <Printer className="h-3.5 w-3.5" />
-            Print
+            Generate Report
           </button>
           <button
             onClick={handleExport}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs btn-gradient text-white rounded print:hidden"
+            title="Export as JSON"
           >
             <Download className="h-3.5 w-3.5" />
-            Export
+            JSON
           </button>
         </div>
       </div>
@@ -286,15 +346,6 @@ function Reports({ sources, assessments, validationTests }) {
           <GapAnalysis 
             gaps={gaps}
             metrics={metrics}
-            expandedSections={expandedSections}
-            toggleSection={toggleSection}
-          />
-        )}
-        
-        {activeReport === 'compliance' && (
-          <ComplianceMapping 
-            complianceStatus={complianceStatus}
-            sources={sources}
             expandedSections={expandedSections}
             toggleSection={toggleSection}
           />
@@ -519,96 +570,6 @@ function GapAnalysis({ gaps, metrics, expandedSections, toggleSection }) {
           </div>
         )}
       </CollapsibleSection>
-    </div>
-  );
-}
-
-function ComplianceMapping({ complianceStatus, sources, expandedSections, toggleSection }) {
-  return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-        <Shield className="h-5 w-5 text-purple-500" />
-        Compliance Mapping
-      </h3>
-
-      <div className="space-y-4">
-        {complianceStatus.map(framework => (
-          <CollapsibleSection
-            key={framework.id}
-            title={
-              <div className="flex items-center justify-between w-full">
-                <span>{framework.name} - {framework.description}</span>
-                {framework.coverage !== null && (
-                  <span className={`px-2 py-0.5 text-xs rounded ml-2 ${
-                    framework.coverage >= 80 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                    framework.coverage >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                    'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                  }`}>
-                    {framework.coverage}% coverage
-                  </span>
-                )}
-              </div>
-            }
-            icon={Lock}
-            isExpanded={expandedSections[framework.id]}
-            onToggle={() => toggleSection(framework.id)}
-          >
-            <div className="space-y-3">
-              {/* Framework Stats */}
-              <div className="flex gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400">Tagged Sources:</span>
-                  <span className="ml-1 font-medium text-gray-900 dark:text-white">{framework.sourcesTagged}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500 dark:text-gray-400">Collecting:</span>
-                  <span className="ml-1 font-medium text-gray-900 dark:text-white">{framework.sourcesCollected}</span>
-                </div>
-              </div>
-
-              {/* Requirements */}
-              <div>
-                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Requirements:</div>
-                <div className="space-y-1">
-                  {framework.requirements.map(req => (
-                    <div key={req.id} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-medium text-gray-900 dark:text-white">{req.name}:</span>
-                        <span className="text-gray-600 dark:text-gray-400 ml-1">{req.description}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tagged Sources List */}
-              {framework.sourcesTagged > 0 && (
-                <div>
-                  <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Tagged Sources:</div>
-                  <div className="flex flex-wrap gap-1">
-                    {sources
-                      .filter(s => (s.tags || []).includes(framework.id))
-                      .map(s => (
-                        <span 
-                          key={s.id} 
-                          className={`px-2 py-0.5 text-xs rounded ${
-                            s.status === 'collected' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                            s.status === 'partial' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                            'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400'
-                          }`}
-                        >
-                          {s.name}
-                        </span>
-                      ))
-                    }
-                  </div>
-                </div>
-              )}
-            </div>
-          </CollapsibleSection>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1021,6 +982,836 @@ function CollapsibleSection({ title, icon: Icon, isExpanded, onToggle, children 
           {children}
         </div>
       )}
+    </div>
+  );
+}
+
+// Report Preview Modal - Generates professional formatted reports
+function ReportPreviewModal({ 
+  reportType, 
+  reportTitle, 
+  metrics, 
+  gaps, 
+  sources, 
+  assessments,
+  assessmentByCategory, 
+  complianceStatus, 
+  onClose 
+}) {
+  const reportRef = useRef(null);
+  const generatedDate = new Date().toLocaleString();
+  const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const handlePrint = () => {
+    const printContent = reportRef.current;
+    const printWindow = window.open('', '_blank');
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Logwise - ${reportTitle}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+          
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          
+          body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            background: #f8fafc;
+          }
+          
+          .report-container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+          }
+          
+          /* Header with gradient */
+          .report-header {
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            color: white;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .report-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+          }
+          
+          .report-header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+          }
+          
+          .report-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+          }
+          
+          .report-header .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+          }
+          
+          .report-header .meta {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            gap: 30px;
+            font-size: 13px;
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+          }
+          
+          .report-body {
+            padding: 40px;
+          }
+          
+          /* Section styling */
+          .section {
+            margin-bottom: 35px;
+          }
+          
+          .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          
+          .section-title .icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+          }
+          
+          /* Enhanced metric cards */
+          .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+          }
+          
+          .metric-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+          }
+          
+          .metric-card.green::before { background: linear-gradient(90deg, #10b981, #059669); }
+          .metric-card.yellow::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+          .metric-card.red::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+          .metric-card.blue::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+          
+          .metric-card .value {
+            font-size: 36px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+          }
+          
+          .metric-card.green .value { background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; background-clip: text; }
+          .metric-card.yellow .value { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); -webkit-background-clip: text; background-clip: text; }
+          .metric-card.red .value { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; background-clip: text; }
+          .metric-card.blue .value { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); -webkit-background-clip: text; background-clip: text; }
+          
+          .metric-card .label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 8px;
+          }
+          
+          /* Enhanced tables */
+          table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+          }
+          
+          th {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          
+          td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+          }
+          
+          tr:last-child td { border-bottom: none; }
+          tr:nth-child(even) { background: #fafbfc; }
+          
+          /* Status badges */
+          .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+          }
+          
+          .status-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+          }
+          
+          .status-collected { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857; }
+          .status-collected::before { background: #059669; }
+          .status-partial { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #b45309; }
+          .status-partial::before { background: #d97706; }
+          .status-planned { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1d4ed8; }
+          .status-planned::before { background: #2563eb; }
+          .status-not-collected { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color: #475569; }
+          .status-not-collected::before { background: #64748b; }
+          .status-blocked { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; }
+          .status-blocked::before { background: #dc2626; }
+          
+          /* Findings box */
+          .finding-box {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 1px solid #fcd34d;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 25px 0;
+            position: relative;
+          }
+          
+          .finding-box::before {
+            content: '⚠️';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: white;
+            padding: 0 8px;
+            font-size: 20px;
+          }
+          
+          .finding-box h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 12px;
+          }
+          
+          .finding-box ul {
+            list-style: none;
+            padding: 0;
+          }
+          
+          .finding-box li {
+            padding: 8px 0;
+            padding-left: 24px;
+            position: relative;
+            font-size: 13px;
+            color: #78350f;
+            border-bottom: 1px solid rgba(252, 211, 77, 0.3);
+          }
+          
+          .finding-box li:last-child { border-bottom: none; }
+          
+          .finding-box li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #d97706;
+            font-weight: bold;
+          }
+          
+          /* Progress bars */
+          .progress-bar {
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+          }
+          
+          .progress-bar .fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+          }
+          
+          .progress-bar .fill.green { background: linear-gradient(90deg, #10b981, #059669); }
+          .progress-bar .fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+          .progress-bar .fill.red { background: linear-gradient(90deg, #ef4444, #dc2626); }
+          .progress-bar .fill.blue { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+          .progress-bar .fill.gray { background: linear-gradient(90deg, #94a3b8, #64748b); }
+          
+          /* Footer */
+          .report-footer {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 25px 40px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #64748b;
+          }
+          
+          .report-footer .brand {
+            font-weight: 600;
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          }
+          
+          /* Summary cards for gap analysis */
+          .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+          }
+          
+          .summary-card {
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .summary-card.red {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid #fecaca;
+          }
+          
+          .summary-card.yellow {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 1px solid #fde68a;
+          }
+          
+          .summary-card .number {
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1;
+          }
+          
+          .summary-card.red .number { color: #dc2626; }
+          .summary-card.yellow .number { color: #d97706; }
+          
+          .summary-card .desc {
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 8px;
+          }
+          
+          .summary-card.red .desc { color: #991b1b; }
+          .summary-card.yellow .desc { color: #92400e; }
+          
+          @media print {
+            body { background: white; }
+            .report-container { box-shadow: none; }
+          }
+        </style>
+      </head>
+      <body>
+        ${printContent.innerHTML}
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const getStatusClass = (status) => {
+    const classes = {
+      collected: 'status-collected',
+      partial: 'status-partial',
+      planned: 'status-planned',
+      'not-collected': 'status-not-collected',
+      blocked: 'status-blocked',
+    };
+    return classes[status] || 'status-not-collected';
+  };
+
+  const criticalityLabels = {
+    'tier-1': 'Tier 1 - Critical',
+    'tier-2': 'Tier 2 - High',
+    'tier-3': 'Tier 3 - Medium',
+    'tier-4': 'Tier 4 - Low',
+  };
+
+  const getGradeLabel = (percent) => {
+    if (percent >= 90) return 'Excellent';
+    if (percent >= 80) return 'Good';
+    if (percent >= 70) return 'Fair';
+    if (percent >= 50) return 'Needs Work';
+    return 'Critical';
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-cyan-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{reportTitle}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Preview and print your professionally formatted report</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 btn-gradient text-white rounded-lg text-sm font-medium shadow-lg shadow-cyan-500/25"
+            >
+              <Printer className="h-4 w-4" />
+              Print / Save PDF
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Report Preview */}
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-gray-900">
+          <div ref={reportRef} className="report-container">
+            {/* Report Header */}
+            <div className="report-header">
+              <h1>Logwise Security Report</h1>
+              <div className="subtitle">{reportTitle}</div>
+              <div className="meta">
+                <span>📅 {reportDate}</span>
+                <span>📊 {sources.length} Log Sources</span>
+                <span>🎯 {metrics.coveragePercent}% Coverage</span>
+              </div>
+            </div>
+
+            <div className="report-body">
+              {/* Executive Summary Report */}
+              {reportType === 'executive' && (
+                <>
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">📈</span>
+                      Key Performance Indicators
+                    </div>
+                    <div className="metrics-grid">
+                      <div className={`metric-card ${metrics.coveragePercent >= 80 ? 'green' : metrics.coveragePercent >= 50 ? 'yellow' : 'red'}`}>
+                        <div className="value">{metrics.coveragePercent}%</div>
+                        <div className="label">Log Coverage</div>
+                      </div>
+                      <div className={`metric-card ${metrics.maturityScore >= 80 ? 'green' : metrics.maturityScore >= 50 ? 'yellow' : 'red'}`}>
+                        <div className="value">{metrics.maturityScore}%</div>
+                        <div className="label">Maturity Score</div>
+                      </div>
+                      <div className={`metric-card ${metrics.detectionRate >= 80 ? 'green' : metrics.detectionRate >= 50 ? 'yellow' : 'red'}`}>
+                        <div className="value">{metrics.detectionRate}%</div>
+                        <div className="label">Detection Rate</div>
+                      </div>
+                      <div className="metric-card blue">
+                        <div className="value">{metrics.collectedSources}/{metrics.totalSources}</div>
+                        <div className="label">Active Sources</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">📊</span>
+                      Source Status Distribution
+                    </div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Status</th>
+                          <th>Count</th>
+                          <th>Percentage</th>
+                          <th style={{ width: '40%' }}>Distribution</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: 'Collected', count: metrics.collectedSources, color: 'green' },
+                          { label: 'Partial', count: metrics.partialSources, color: 'yellow' },
+                          { label: 'Planned', count: metrics.plannedSources, color: 'blue' },
+                          { label: 'Not Collected', count: metrics.notCollectedSources, color: 'gray' },
+                          { label: 'Blocked', count: metrics.blockedSources, color: 'red' },
+                        ].map(row => (
+                          <tr key={row.label}>
+                            <td style={{ fontWeight: 500 }}>{row.label}</td>
+                            <td>{row.count}</td>
+                            <td>{metrics.totalSources > 0 ? Math.round((row.count / metrics.totalSources) * 100) : 0}%</td>
+                            <td>
+                              <div className="progress-bar">
+                                <div 
+                                  className={`fill ${row.color}`}
+                                  style={{ width: `${metrics.totalSources > 0 ? (row.count / metrics.totalSources) * 100 : 0}%` }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">✅</span>
+                      Assessment Scores by Category
+                    </div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Category</th>
+                          <th>Score</th>
+                          <th>Grade</th>
+                          <th style={{ width: '40%' }}>Progress</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(assessmentByCategory).map(([cat, data]) => {
+                          const percent = data.maxScore > 0 ? Math.round((data.score / data.maxScore) * 100) : 0;
+                          return (
+                            <tr key={cat}>
+                              <td style={{ fontWeight: 500 }}>{cat}</td>
+                              <td>{percent}%</td>
+                              <td>
+                                <span style={{ 
+                                  color: percent >= 80 ? '#059669' : percent >= 50 ? '#d97706' : '#dc2626',
+                                  fontWeight: 600
+                                }}>
+                                  {getGradeLabel(percent)}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="progress-bar">
+                                  <div 
+                                    className={`fill ${percent >= 80 ? 'green' : percent >= 50 ? 'yellow' : 'red'}`}
+                                    style={{ width: `${percent}%` }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {(gaps.sourceGaps.length > 0 || gaps.assessmentGaps.length > 0 || gaps.validationGaps.length > 0) && (
+                    <div className="finding-box">
+                      <h4>Key Findings & Recommendations</h4>
+                      <ul>
+                        {gaps.sourceGaps.length > 0 && (
+                          <li><strong>{gaps.sourceGaps.length} log sources</strong> are not yet collecting data and require immediate attention</li>
+                        )}
+                        {gaps.assessmentGaps.length > 0 && (
+                          <li><strong>{gaps.assessmentGaps.length} assessment questions</strong> have been identified as gaps in your security posture</li>
+                        )}
+                        {gaps.validationGaps.length > 0 && (
+                          <li><strong>{gaps.validationGaps.length} validation tests</strong> have failed or are pending review</li>
+                        )}
+                        {Object.entries(metrics.criticalityBreakdown).map(([tier, data]) => {
+                          if (data.total > 0 && data.coverage < 80) {
+                            return <li key={tier}><strong>{data.label}</strong> coverage is at {data.coverage}%, below the recommended 80% target</li>;
+                          }
+                          return null;
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Gap Analysis Report */}
+              {reportType === 'gap' && (
+                <>
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">🔍</span>
+                      Gap Summary Overview
+                    </div>
+                    <div className="summary-cards">
+                      <div className="summary-card red">
+                        <div className="number">{gaps.sourceGaps.length}</div>
+                        <div className="desc">Source Gaps</div>
+                      </div>
+                      <div className="summary-card yellow">
+                        <div className="number">{gaps.assessmentGaps.length}</div>
+                        <div className="desc">Assessment Gaps</div>
+                      </div>
+                      <div className="summary-card yellow">
+                        <div className="number">{gaps.validationGaps.length}</div>
+                        <div className="desc">Validation Gaps</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {gaps.sourceGaps.length > 0 && (
+                    <div className="section">
+                      <div className="section-title">
+                        <span className="icon">📁</span>
+                        Log Source Gaps ({gaps.sourceGaps.length})
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Source Name</th>
+                            <th>Category</th>
+                            <th>Current Status</th>
+                            <th>Criticality</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gaps.sourceGaps.map(source => (
+                            <tr key={source.id}>
+                              <td style={{ fontWeight: 500 }}>{source.name}</td>
+                              <td>{source.category || '-'}</td>
+                              <td><span className={`status-badge ${getStatusClass(source.status)}`}>{source.status?.replace('-', ' ')}</span></td>
+                              <td>{criticalityLabels[source.criticalityTier] || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {gaps.assessmentGaps.length > 0 && (
+                    <div className="section">
+                      <div className="section-title">
+                        <span className="icon">📋</span>
+                        Assessment Gaps ({gaps.assessmentGaps.length})
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Question</th>
+                            <th>Category</th>
+                            <th>Current Response</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gaps.assessmentGaps.slice(0, 20).map(q => {
+                            const response = assessments?.[q.id];
+                            return (
+                              <tr key={q.id}>
+                                <td>{q.question}</td>
+                                <td>{q.category}</td>
+                                <td style={{ fontWeight: 500, color: '#dc2626' }}>{response?.response || 'Not answered'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      {gaps.assessmentGaps.length > 20 && (
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '15px', fontStyle: 'italic' }}>
+                          📝 {gaps.assessmentGaps.length - 20} additional assessment gaps not shown in this summary
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Inventory Report */}
+              {reportType === 'coverage' && (
+                <>
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">📦</span>
+                      Inventory Status Summary
+                    </div>
+                    <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                      <div className="metric-card green">
+                        <div className="value">{sources.filter(s => s.status === 'collected').length}</div>
+                        <div className="label">Collected</div>
+                      </div>
+                      <div className="metric-card yellow">
+                        <div className="value">{sources.filter(s => s.status === 'partial').length}</div>
+                        <div className="label">Partial</div>
+                      </div>
+                      <div className="metric-card blue">
+                        <div className="value">{sources.filter(s => s.status === 'planned').length}</div>
+                        <div className="label">Planned</div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="value" style={{ color: '#64748b' }}>{sources.filter(s => s.status === 'not-collected').length}</div>
+                        <div className="label">Not Collected</div>
+                      </div>
+                      <div className="metric-card red">
+                        <div className="value">{sources.filter(s => s.status === 'blocked').length}</div>
+                        <div className="label">Blocked</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">📊</span>
+                      Coverage by Category
+                    </div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Category</th>
+                          <th>Total</th>
+                          <th>Collecting</th>
+                          <th>Coverage</th>
+                          <th style={{ width: '30%' }}>Progress</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(metrics.categoryBreakdown).sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => {
+                          const collecting = data.collected + data.partial;
+                          const coverage = data.total > 0 ? Math.round((collecting / data.total) * 100) : 0;
+                          return (
+                            <tr key={cat}>
+                              <td style={{ fontWeight: 500 }}>{cat}</td>
+                              <td>{data.total}</td>
+                              <td>{collecting}</td>
+                              <td>
+                                <span style={{ 
+                                  color: coverage >= 80 ? '#059669' : coverage >= 50 ? '#d97706' : '#dc2626',
+                                  fontWeight: 600
+                                }}>
+                                  {coverage}%
+                                </span>
+                              </td>
+                              <td>
+                                <div className="progress-bar">
+                                  <div 
+                                    className={`fill ${coverage >= 80 ? 'green' : coverage >= 50 ? 'yellow' : 'red'}`}
+                                    style={{ width: `${coverage}%` }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">📋</span>
+                      Complete Log Source Inventory ({sources.length} sources)
+                    </div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Source Name</th>
+                          <th>Category</th>
+                          <th>Status</th>
+                          <th>Criticality</th>
+                          <th>Owner</th>
+                          <th>Retention</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sources.map(source => (
+                          <tr key={source.id}>
+                            <td style={{ fontWeight: 500 }}>{source.name}</td>
+                            <td>{source.category || '-'}</td>
+                            <td><span className={`status-badge ${getStatusClass(source.status)}`}>{source.status?.replace('-', ' ')}</span></td>
+                            <td>{criticalityLabels[source.criticalityTier]?.split(' - ')[0] || '-'}</td>
+                            <td>{source.ownerTeam || '-'}</td>
+                            <td>{source.retention || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Report Footer */}
+            <div className="report-footer">
+              <div><span className="brand">Logwise</span> Security Log Source Tracker</div>
+              <div>Generated: {generatedDate}</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

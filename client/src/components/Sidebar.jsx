@@ -21,7 +21,7 @@ const navItems = [
 function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
   return (
     <aside 
-      className={`fixed left-0 top-[52px] h-[calc(100vh-52px)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${
+      className={`fixed left-0 top-[64px] h-[calc(100vh-64px)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${
         collapsed ? 'w-14' : 'w-52'
       }`}
     >
