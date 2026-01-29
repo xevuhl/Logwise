@@ -23,23 +23,47 @@ A comprehensive tool for tracking and managing your organization's security log 
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Docker (Recommended)
+
+No Node.js installation required - just Docker!
+
+```bash
+# Clone the repository
+git clone https://github.com/xevuhl/Logwise.git
+cd Logwise
+
+# Run with Docker Compose
+docker compose up --build
+```
+
+Visit http://localhost:3000
+
+**Development mode with hot-reload:**
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+---
+
+### Option 2: npm
+
+#### Prerequisites
 
 - Node.js 18+
 - npm
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Logwise.git
+git clone https://github.com/xevuhl/Logwise.git
 cd Logwise
 
 # Install all dependencies
 npm run install:all
 ```
 
-### Development
+#### Development
 
 ```bash
 # Run both frontend and backend
@@ -49,7 +73,7 @@ npm run dev
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001/api
 
-### Production Build
+#### Production Build
 
 ```bash
 npm run build
