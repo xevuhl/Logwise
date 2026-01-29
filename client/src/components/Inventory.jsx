@@ -18,7 +18,7 @@ import {
   Shield,
   Tag
 } from 'lucide-react';
-import { statusOptions, categoryOptions, assessmentQuestions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions } from '../constants';
+import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions } from '../constants';
 
 function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding }) {
   const [search, setSearch] = useState('');
@@ -233,25 +233,6 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
     }
   };
 
-  // Get assessment coverage for this source
-  const getAssessmentCoverage = () => {
-    const sourceName = source.name.toLowerCase();
-    const sourceCategory = (source.category || '').toLowerCase();
-    
-    return assessmentQuestions.filter(q => {
-      const questionLower = q.question.toLowerCase();
-      const descLower = q.description.toLowerCase();
-      
-      // Simple keyword matching
-      const keywords = sourceName.split(/[\s-_]+/).filter(k => k.length > 2);
-      return keywords.some(kw => 
-        questionLower.includes(kw) || descLower.includes(kw)
-      ) || (sourceCategory && (questionLower.includes(sourceCategory) || descLower.includes(sourceCategory)));
-    });
-  };
-
-  const assessmentCoverage = getAssessmentCoverage();
-
   return (
     <div className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
       {/* Main row */}
@@ -373,25 +354,67 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
                 </div>
               )}
 
-              {/* Assessment Coverage */}
-              <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded">
-                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Assessment Coverage ({assessmentCoverage.length} questions)
-                </div>
-                {assessmentCoverage.length > 0 ? (
-                  <div className="space-y-0.5">
-                    {assessmentCoverage.map(q => (
-                      <div key={q.id} className="text-xs text-gray-600 dark:text-gray-400">
-                        • {q.question}
+              {/* Technical Details */}
+              {(source.collectionMethod || source.networkRequirements || source.credentials) && (
+                <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded">
+                  <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Technical Details</div>
+                  <div className="space-y-2">
+                    {source.collectionMethod && (
+                      <div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400">Collection Method</div>
+                        <div className="text-xs text-gray-900 dark:text-white">{source.collectionMethod}</div>
                       </div>
-                    ))}
+                    )}
+                    {source.networkRequirements && (
+                      <div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400">Network Requirements</div>
+                        <div className="text-xs text-gray-900 dark:text-white">{source.networkRequirements}</div>
+                      </div>
+                    )}
+                    {source.credentials && (
+                      <div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400">Credentials Reference</div>
+                        <div className="text-xs text-gray-900 dark:text-white">{source.credentials}</div>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    No direct assessment questions linked to this source
+                </div>
+              )}
+
+              {/* Validation Details */}
+              {(source.validationPlan || source.expectedFields || source.sampleQuery) && (
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                  <div className="text-[10px] font-medium text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">Validation</div>
+                  <div className="space-y-2">
+                    {source.validationPlan && (
+                      <div>
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400">Validation Plan</div>
+                        <div className="text-xs text-gray-900 dark:text-white">{source.validationPlan}</div>
+                      </div>
+                    )}
+                    {source.expectedFields && (
+                      <div>
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400">Expected Fields</div>
+                        <div className="text-xs text-gray-900 dark:text-white">{source.expectedFields}</div>
+                      </div>
+                    )}
+                    {source.sampleQuery && (
+                      <div>
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400">Sample Query</div>
+                        <pre className="text-xs text-gray-900 dark:text-white font-mono bg-blue-100 dark:bg-blue-900/30 p-2 rounded mt-1 overflow-x-auto">{source.sampleQuery}</pre>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* JSON Mapping Schema */}
+              {source.jsonMappingSchema && (
+                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800">
+                  <div className="text-[10px] font-medium text-purple-700 dark:text-purple-400 uppercase tracking-wider mb-1.5">JSON Mapping Schema</div>
+                  <pre className="text-xs text-gray-900 dark:text-white font-mono bg-purple-100 dark:bg-purple-900/30 p-2 rounded overflow-x-auto">{source.jsonMappingSchema}</pre>
+                </div>
+              )}
             </div>
           )}
         </div>

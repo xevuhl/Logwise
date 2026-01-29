@@ -21,14 +21,16 @@ import {
   Eye,
   Settings,
   Database,
-  FileDown
+  FileDown,
+  Crosshair
 } from 'lucide-react';
 import { 
   assessmentQuestions, 
   complianceFrameworks, 
   statusOptions,
   criticalityTierOptions,
-  defaultTagOptions 
+  defaultTagOptions,
+  validationTestLibrary
 } from '../constants';
 
 function Reports({ sources, assessments, validationTests }) {
@@ -95,22 +97,39 @@ function Reports({ sources, assessments, validationTests }) {
       };
     });
 
-    // Validation test results
+    // Validation test results - properly merge library with saved results
     const tests = validationTests || [];
-    const passedTests = tests.filter(t => t.result === 'pass').length;
-    const failedTests = tests.filter(t => t.result === 'fail').length;
-    const pendingTests = tests.filter(t => t.result === 'pending' || !t.result).length;
-    const detectionRate = tests.length > 0 ? Math.round((passedTests / tests.length) * 100) : 0;
-
-    // MITRE coverage
-    const mitreCategories = {};
+    const totalLibraryTests = validationTestLibrary.length;
+    
+    // Create a map of saved results by testId
+    const resultsMap = {};
     tests.forEach(t => {
-      if (t.mitreCategory) {
-        if (!mitreCategories[t.mitreCategory]) {
-          mitreCategories[t.mitreCategory] = { total: 0, passed: 0 };
-        }
-        mitreCategories[t.mitreCategory].total++;
-        if (t.result === 'pass') mitreCategories[t.mitreCategory].passed++;
+      resultsMap[t.testId] = t;
+    });
+    
+    // Categorize tests
+    const passedTests = tests.filter(t => t.logCaptured && t.detectionFired).length;
+    const partialTests = tests.filter(t => t.logCaptured && !t.detectionFired).length;
+    const failedTests = tests.filter(t => !t.logCaptured).length;
+    const notTestedCount = totalLibraryTests - tests.length;
+    const detectionRate = tests.length > 0 ? Math.round((passedTests / tests.length) * 100) : 0;
+    const testCoverage = totalLibraryTests > 0 ? Math.round((tests.length / totalLibraryTests) * 100) : 0;
+
+    // MITRE coverage from library
+    const mitreCategories = {};
+    validationTestLibrary.forEach(libTest => {
+      const tactic = libTest.tactic;
+      if (!mitreCategories[tactic]) {
+        mitreCategories[tactic] = { total: 0, tested: 0, passed: 0, partial: 0, failed: 0 };
+      }
+      mitreCategories[tactic].total++;
+      
+      const result = resultsMap[libTest.id];
+      if (result) {
+        mitreCategories[tactic].tested++;
+        if (result.logCaptured && result.detectionFired) mitreCategories[tactic].passed++;
+        else if (result.logCaptured) mitreCategories[tactic].partial++;
+        else mitreCategories[tactic].failed++;
       }
     });
 
@@ -125,11 +144,15 @@ function Reports({ sources, assessments, validationTests }) {
       maturityScore,
       categoryBreakdown,
       criticalityBreakdown,
+      totalLibraryTests,
       passedTests,
+      partialTests,
       failedTests,
-      pendingTests,
+      notTestedCount,
       detectionRate,
-      mitreCategories
+      testCoverage,
+      mitreCategories,
+      resultsMap
     };
   }, [sources, assessments, validationTests]);
 
@@ -165,11 +188,30 @@ function Reports({ sources, assessments, validationTests }) {
       return !response?.response || response.response === 'no' || response.response === 'partial';
     });
 
-    const validationGaps = (validationTests || []).filter(t => 
-      t.result === 'fail' || t.result === 'pending' || !t.result
-    );
+    // Validation gaps - tests that failed or weren't run
+    const tests = validationTests || [];
+    const resultsMap = {};
+    tests.forEach(t => { resultsMap[t.testId] = t; });
+    
+    const validationGaps = validationTestLibrary.filter(libTest => {
+      const result = resultsMap[libTest.id];
+      // Gap if: not tested, or tested but failed (no log captured)
+      return !result || !result.logCaptured;
+    }).map(libTest => ({
+      ...libTest,
+      result: resultsMap[libTest.id] || null
+    }));
+    
+    // Partial detections (log captured but no alert)
+    const partialDetections = validationTestLibrary.filter(libTest => {
+      const result = resultsMap[libTest.id];
+      return result && result.logCaptured && !result.detectionFired;
+    }).map(libTest => ({
+      ...libTest,
+      result: resultsMap[libTest.id]
+    }));
 
-    return { sourceGaps, assessmentGaps, validationGaps };
+    return { sourceGaps, assessmentGaps, validationGaps, partialDetections };
   }, [sources, assessments, validationTests]);
 
   // Compliance mapping
@@ -249,6 +291,7 @@ function Reports({ sources, assessments, validationTests }) {
 
   const reportTypes = [
     { id: 'executive', label: 'Executive Summary', icon: Building2 },
+    { id: 'validation', label: 'Detection Validation', icon: Crosshair },
     { id: 'gap', label: 'Gap Analysis', icon: AlertTriangle },
     { id: 'coverage', label: 'Inventory Report', icon: Database }
   ];
@@ -342,6 +385,15 @@ function Reports({ sources, assessments, validationTests }) {
           />
         )}
         
+        {activeReport === 'validation' && (
+          <ValidationReport 
+            metrics={metrics}
+            gaps={gaps}
+            expandedSections={expandedSections}
+            toggleSection={toggleSection}
+          />
+        )}
+        
         {activeReport === 'gap' && (
           <GapAnalysis 
             gaps={gaps}
@@ -403,7 +455,7 @@ function ExecutiveSummary({ metrics, assessmentByCategory, gaps }) {
       {/* Status Distribution */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Source Status Distribution</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Source Collection Status</h4>
           <div className="space-y-2">
             <StatusBar label="Collected" value={metrics.collectedSources} total={metrics.totalSources} color="green" />
             <StatusBar label="Partial" value={metrics.partialSources} total={metrics.totalSources} color="yellow" />
@@ -414,7 +466,7 @@ function ExecutiveSummary({ metrics, assessmentByCategory, gaps }) {
         </div>
 
         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Assessment by Category</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Security Assessment by Function</h4>
           <div className="space-y-2">
             {Object.entries(assessmentByCategory).map(([cat, data]) => (
               <div key={cat} className="flex items-center justify-between text-sm">
@@ -431,30 +483,298 @@ function ExecutiveSummary({ metrics, assessmentByCategory, gaps }) {
         </div>
       </div>
 
-      {/* Key Findings */}
-      <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
-        <h4 className="text-sm font-medium text-amber-800 dark:text-amber-400 mb-2 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
-          Key Findings
-        </h4>
-        <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
-          {gaps.sourceGaps.length > 0 && (
-            <li>• {gaps.sourceGaps.length} log sources not yet collecting data</li>
-          )}
-          {gaps.assessmentGaps.length > 0 && (
-            <li>• {gaps.assessmentGaps.length} assessment questions need attention</li>
-          )}
-          {gaps.validationGaps.length > 0 && (
-            <li>• {gaps.validationGaps.length} validation tests failed or pending</li>
-          )}
-          {Object.entries(metrics.criticalityBreakdown).map(([tier, data]) => {
-            if (data.total > 0 && data.coverage < 80) {
-              return <li key={tier}>• {data.label} coverage at {data.coverage}% (below 80% target)</li>;
-            }
-            return null;
-          })}
-        </ul>
+      {/* Priority Actions */}
+      {(gaps.sourceGaps.length > 0 || gaps.assessmentGaps.length > 0 || gaps.validationGaps.length > 0) && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
+          <h4 className="text-sm font-medium text-amber-800 dark:text-amber-400 mb-2 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Priority Actions Required
+          </h4>
+          <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+            {gaps.sourceGaps.filter(s => s.status === 'blocked').length > 0 && (
+              <li>• <strong>{gaps.sourceGaps.filter(s => s.status === 'blocked').length} blocked log sources</strong> require escalation to resolve collection issues</li>
+            )}
+            {gaps.sourceGaps.filter(s => s.status === 'not-collected').length > 0 && (
+              <li>• <strong>{gaps.sourceGaps.filter(s => s.status === 'not-collected').length} unmonitored sources</strong> need onboarding to SIEM</li>
+            )}
+            {gaps.validationGaps.filter(g => !g.result).length > 0 && (
+              <li>• <strong>{gaps.validationGaps.filter(g => !g.result).length} detection tests</strong> have not been executed</li>
+            )}
+            {gaps.partialDetections && gaps.partialDetections.length > 0 && (
+              <li>• <strong>{gaps.partialDetections.length} partial detections</strong> - logs captured but no alerts configured</li>
+            )}
+            {Object.entries(metrics.criticalityBreakdown).map(([tier, data]) => {
+              if (data.total > 0 && data.coverage < 80 && (tier === 'tier-1' || tier === 'tier-2')) {
+                return <li key={tier}>• <strong>{data.label}</strong> coverage is {data.coverage}% - prioritize high-criticality sources</li>;
+              }
+              return null;
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ValidationReport({ metrics, gaps, expandedSections, toggleSection }) {
+  // Group tests by tactic for better organization
+  const testsByTactic = useMemo(() => {
+    const grouped = {};
+    validationTestLibrary.forEach(test => {
+      if (!grouped[test.tactic]) {
+        grouped[test.tactic] = [];
+      }
+      const result = metrics.resultsMap[test.id];
+      grouped[test.tactic].push({
+        ...test,
+        result,
+        status: !result ? 'not-tested' : 
+                (result.logCaptured && result.detectionFired) ? 'passed' :
+                result.logCaptured ? 'partial' : 'failed'
+      });
+    });
+    return grouped;
+  }, [metrics.resultsMap]);
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <Crosshair className="h-5 w-5 text-purple-500" />
+        Detection Validation Report
+      </h3>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-center">
+          <div className="text-2xl font-bold text-gray-700 dark:text-gray-300">{metrics.totalLibraryTests}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Total Tests</div>
+        </div>
+        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800 text-center">
+          <div className="text-2xl font-bold text-green-700 dark:text-green-400">{metrics.passedTests}</div>
+          <div className="text-xs text-green-600 dark:text-green-300">Passed</div>
+        </div>
+        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800 text-center">
+          <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{metrics.partialTests}</div>
+          <div className="text-xs text-yellow-600 dark:text-yellow-300">Partial (Log Only)</div>
+        </div>
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800 text-center">
+          <div className="text-2xl font-bold text-red-700 dark:text-red-400">{metrics.failedTests}</div>
+          <div className="text-xs text-red-600 dark:text-red-300">Failed</div>
+        </div>
+        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-center">
+          <div className="text-2xl font-bold text-gray-500 dark:text-gray-400">{metrics.notTestedCount}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Not Tested</div>
+        </div>
       </div>
+
+      {/* Detection Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">Detection Rate</h4>
+            <span className={`text-lg font-bold ${
+              metrics.detectionRate >= 80 ? 'text-green-600' : 
+              metrics.detectionRate >= 50 ? 'text-yellow-600' : 'text-red-600'
+            }`}>{metrics.detectionRate}%</span>
+          </div>
+          <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all ${
+                metrics.detectionRate >= 80 ? 'bg-green-500' : 
+                metrics.detectionRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${metrics.detectionRate}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {metrics.passedTests} of {metrics.passedTests + metrics.partialTests + metrics.failedTests} tested scenarios have working detections
+          </p>
+        </div>
+
+        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">Test Coverage</h4>
+            <span className={`text-lg font-bold ${
+              metrics.testCoverage >= 80 ? 'text-green-600' : 
+              metrics.testCoverage >= 50 ? 'text-yellow-600' : 'text-red-600'
+            }`}>{metrics.testCoverage}%</span>
+          </div>
+          <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all ${
+                metrics.testCoverage >= 80 ? 'bg-green-500' : 
+                metrics.testCoverage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${metrics.testCoverage}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {metrics.totalLibraryTests - metrics.notTestedCount} of {metrics.totalLibraryTests} tests in library have been executed
+          </p>
+        </div>
+      </div>
+
+      {/* MITRE ATT&CK Coverage by Tactic */}
+      <CollapsibleSection
+        title="Coverage by MITRE ATT&CK Tactic"
+        icon={Shield}
+        isExpanded={expandedSections['mitreTactics'] !== false}
+        onToggle={() => toggleSection('mitreTactics')}
+      >
+        <div className="space-y-3">
+          {Object.entries(metrics.mitreCategories).map(([tactic, data]) => {
+            const testedPct = data.total > 0 ? Math.round((data.tested / data.total) * 100) : 0;
+            const passedPct = data.tested > 0 ? Math.round((data.passed / data.tested) * 100) : 0;
+            
+            return (
+              <div key={tactic} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{tactic}</span>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-gray-500">{data.tested}/{data.total} tested</span>
+                    <span className={`font-medium ${
+                      passedPct >= 80 ? 'text-green-600' : passedPct >= 50 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>{data.tested > 0 ? `${passedPct}% passing` : 'No tests run'}</span>
+                  </div>
+                </div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded overflow-hidden flex">
+                  <div className="bg-green-500 h-full" style={{ width: `${(data.passed / data.total) * 100}%` }} />
+                  <div className="bg-yellow-500 h-full" style={{ width: `${(data.partial / data.total) * 100}%` }} />
+                  <div className="bg-red-500 h-full" style={{ width: `${(data.failed / data.total) * 100}%` }} />
+                </div>
+                <div className="flex gap-4 mt-2 text-xs">
+                  <span className="text-green-600 dark:text-green-400">● {data.passed} passed</span>
+                  <span className="text-yellow-600 dark:text-yellow-400">● {data.partial} partial</span>
+                  <span className="text-red-600 dark:text-red-400">● {data.failed} failed</span>
+                  <span className="text-gray-500">● {data.total - data.tested} not tested</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CollapsibleSection>
+
+      {/* Failed Tests - Priority Fix */}
+      {gaps.validationGaps.filter(g => g.result && !g.result.logCaptured).length > 0 && (
+        <CollapsibleSection
+          title={`Failed Tests - No Log Capture (${gaps.validationGaps.filter(g => g.result && !g.result.logCaptured).length})`}
+          icon={XCircle}
+          isExpanded={expandedSections['failedTests']}
+          onToggle={() => toggleSection('failedTests')}
+        >
+          <div className="space-y-2">
+            {gaps.validationGaps.filter(g => g.result && !g.result.logCaptured).map(test => (
+              <div key={test.id} className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{test.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {test.technique} • {test.tactic}
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium">
+                  Failed
+                </span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Partial Detections - Need Alert Rules */}
+      {gaps.partialDetections && gaps.partialDetections.length > 0 && (
+        <CollapsibleSection
+          title={`Partial Detections - Need Alert Rules (${gaps.partialDetections.length})`}
+          icon={AlertTriangle}
+          isExpanded={expandedSections['partialTests']}
+          onToggle={() => toggleSection('partialTests')}
+        >
+          <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+            <p className="text-xs text-yellow-700 dark:text-yellow-300">
+              These tests show that logs are being captured correctly, but no detection rules are firing. 
+              Consider creating SIEM alerts for these techniques.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {gaps.partialDetections.map(test => (
+              <div key={test.id} className="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{test.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {test.technique} • {test.tactic}
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded font-medium">
+                  Log Only
+                </span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Not Tested */}
+      {gaps.validationGaps.filter(g => !g.result).length > 0 && (
+        <CollapsibleSection
+          title={`Not Yet Tested (${gaps.validationGaps.filter(g => !g.result).length})`}
+          icon={Clock}
+          isExpanded={expandedSections['notTested']}
+          onToggle={() => toggleSection('notTested')}
+        >
+          <div className="space-y-2">
+            {gaps.validationGaps.filter(g => !g.result).slice(0, 15).map(test => (
+              <div key={test.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{test.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {test.technique} • {test.tactic}
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                  Not Tested
+                </span>
+              </div>
+            ))}
+            {gaps.validationGaps.filter(g => !g.result).length > 15 && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 p-2">
+                ...and {gaps.validationGaps.filter(g => !g.result).length - 15} more tests not yet executed
+              </div>
+            )}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Passed Tests */}
+      <CollapsibleSection
+        title={`Passed Tests (${metrics.passedTests})`}
+        icon={CheckCircle}
+        isExpanded={expandedSections['passedTests']}
+        onToggle={() => toggleSection('passedTests')}
+      >
+        {metrics.passedTests === 0 ? (
+          <div className="text-sm text-gray-500 dark:text-gray-400 p-2">
+            No tests have passed yet. Run validation tests to see results here.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {Object.values(testsByTactic).flat().filter(t => t.status === 'passed').map(test => (
+              <div key={test.id} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{test.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {test.technique} • {test.tactic}
+                    {test.result?.testedAt && (
+                      <span className="ml-2">• Tested: {new Date(test.result.testedAt).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded font-medium">
+                  Passed
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CollapsibleSection>
     </div>
   );
 }
@@ -1800,6 +2120,238 @@ function ReportPreviewModal({
                       </tbody>
                     </table>
                   </div>
+                </>
+              )}
+
+              {/* Validation Report */}
+              {reportType === 'validation' && (
+                <>
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">🎯</span>
+                      Detection Validation Summary
+                    </div>
+                    <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                      <div className="metric-card">
+                        <div className="value" style={{ color: '#475569' }}>{metrics.totalLibraryTests}</div>
+                        <div className="label">Total Tests</div>
+                      </div>
+                      <div className="metric-card green">
+                        <div className="value">{metrics.passedTests}</div>
+                        <div className="label">Passed</div>
+                      </div>
+                      <div className="metric-card yellow">
+                        <div className="value">{metrics.partialTests}</div>
+                        <div className="label">Partial</div>
+                      </div>
+                      <div className="metric-card red">
+                        <div className="value">{metrics.failedTests}</div>
+                        <div className="label">Failed</div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="value" style={{ color: '#94a3b8' }}>{metrics.notTestedCount}</div>
+                        <div className="label">Not Tested</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">📊</span>
+                      Detection Performance Metrics
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <span style={{ fontWeight: 500, color: '#475569' }}>Detection Rate</span>
+                          <span style={{ 
+                            fontSize: '24px', 
+                            fontWeight: 700, 
+                            color: metrics.detectionRate >= 80 ? '#059669' : metrics.detectionRate >= 50 ? '#d97706' : '#dc2626'
+                          }}>{metrics.detectionRate}%</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div 
+                            className={`fill ${metrics.detectionRate >= 80 ? 'green' : metrics.detectionRate >= 50 ? 'yellow' : 'red'}`}
+                            style={{ width: `${metrics.detectionRate}%` }}
+                          />
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                          Percentage of tested scenarios with working detections
+                        </p>
+                      </div>
+                      <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <span style={{ fontWeight: 500, color: '#475569' }}>Test Coverage</span>
+                          <span style={{ 
+                            fontSize: '24px', 
+                            fontWeight: 700, 
+                            color: metrics.testCoverage >= 80 ? '#059669' : metrics.testCoverage >= 50 ? '#d97706' : '#dc2626'
+                          }}>{metrics.testCoverage}%</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div 
+                            className={`fill ${metrics.testCoverage >= 80 ? 'green' : metrics.testCoverage >= 50 ? 'yellow' : 'red'}`}
+                            style={{ width: `${metrics.testCoverage}%` }}
+                          />
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                          Percentage of test library that has been executed
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="section">
+                    <div className="section-title">
+                      <span className="icon">🛡️</span>
+                      Coverage by MITRE ATT&CK Tactic
+                    </div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Tactic</th>
+                          <th>Passed</th>
+                          <th>Partial</th>
+                          <th>Failed</th>
+                          <th>Not Tested</th>
+                          <th style={{ width: '25%' }}>Detection Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(metrics.mitreCategories || {}).map(([tactic, data]) => {
+                          const detectionPct = data.tested > 0 ? Math.round((data.passed / data.tested) * 100) : 0;
+                          return (
+                            <tr key={tactic}>
+                              <td style={{ fontWeight: 500 }}>{tactic}</td>
+                              <td style={{ color: '#059669', fontWeight: 500 }}>{data.passed}</td>
+                              <td style={{ color: '#d97706', fontWeight: 500 }}>{data.partial}</td>
+                              <td style={{ color: '#dc2626', fontWeight: 500 }}>{data.failed}</td>
+                              <td style={{ color: '#64748b' }}>{data.total - data.tested}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div className="progress-bar" style={{ flex: 1 }}>
+                                    <div 
+                                      className={`fill ${detectionPct >= 80 ? 'green' : detectionPct >= 50 ? 'yellow' : 'red'}`}
+                                      style={{ width: `${detectionPct}%` }}
+                                    />
+                                  </div>
+                                  <span style={{ 
+                                    fontSize: '12px', 
+                                    fontWeight: 600,
+                                    color: data.tested === 0 ? '#94a3b8' : detectionPct >= 80 ? '#059669' : detectionPct >= 50 ? '#d97706' : '#dc2626',
+                                    minWidth: '35px'
+                                  }}>
+                                    {data.tested > 0 ? `${detectionPct}%` : '-'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Failed Tests Section */}
+                  {gaps.validationGaps.filter(g => g.result && !g.result.logCaptured).length > 0 && (
+                    <div className="section">
+                      <div className="section-title">
+                        <span className="icon">❌</span>
+                        Failed Tests - No Log Capture ({gaps.validationGaps.filter(g => g.result && !g.result.logCaptured).length})
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Test Name</th>
+                            <th>MITRE Technique</th>
+                            <th>Tactic</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gaps.validationGaps.filter(g => g.result && !g.result.logCaptured).map(test => (
+                            <tr key={test.id}>
+                              <td style={{ fontWeight: 500 }}>{test.name}</td>
+                              <td>{test.technique}</td>
+                              <td>{test.tactic}</td>
+                              <td><span className="status-badge status-blocked">Failed</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Partial Detections Section */}
+                  {gaps.partialDetections && gaps.partialDetections.length > 0 && (
+                    <div className="section">
+                      <div className="section-title">
+                        <span className="icon">⚠️</span>
+                        Partial Detections - Need Alert Rules ({gaps.partialDetections.length})
+                      </div>
+                      <div className="finding-box">
+                        <h4>Action Required</h4>
+                        <ul>
+                          <li>These tests captured logs successfully but no SIEM alerts are configured</li>
+                          <li>Consider creating detection rules for these MITRE ATT&CK techniques</li>
+                        </ul>
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Test Name</th>
+                            <th>MITRE Technique</th>
+                            <th>Tactic</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gaps.partialDetections.map(test => (
+                            <tr key={test.id}>
+                              <td style={{ fontWeight: 500 }}>{test.name}</td>
+                              <td>{test.technique}</td>
+                              <td>{test.tactic}</td>
+                              <td><span className="status-badge status-partial">Log Only</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Passed Tests Section */}
+                  {metrics.passedTests > 0 && (
+                    <div className="section">
+                      <div className="section-title">
+                        <span className="icon">✅</span>
+                        Passed Tests ({metrics.passedTests})
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Test Name</th>
+                            <th>MITRE Technique</th>
+                            <th>Tactic</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {validationTestLibrary.filter(test => {
+                            const result = metrics.resultsMap[test.id];
+                            return result && result.logCaptured && result.detectionFired;
+                          }).map(test => (
+                            <tr key={test.id}>
+                              <td style={{ fontWeight: 500 }}>{test.name}</td>
+                              <td>{test.technique}</td>
+                              <td>{test.tactic}</td>
+                              <td><span className="status-badge status-collected">Passed</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </>
               )}
             </div>
