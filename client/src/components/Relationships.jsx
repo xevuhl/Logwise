@@ -19,11 +19,13 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRightCircle,
-  Network
+  Network,
+  Database,
+  Target
 } from 'lucide-react';
-import { relationshipTypes, statusOptions } from '../constants';
+import { relationshipTypes, statusOptions, targetTypes, targetStatusOptions } from '../constants';
 
-function Relationships({ sources, relationships, onCreate, onUpdate, onDelete }) {
+function Relationships({ sources, targets, relationships, onCreate, onUpdate, onDelete }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -35,15 +37,35 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
   // Create a map of sources for quick lookup
   const sourcesMap = useMemo(() => {
     const map = {};
-    sources.forEach(s => { map[s.id] = s; });
+    sources.forEach(s => { map[s.id] = { ...s, entityType: 'source' }; });
     return map;
   }, [sources]);
+
+  // Create a map of targets for quick lookup
+  const targetsMap = useMemo(() => {
+    const map = {};
+    (targets || []).forEach(t => { map[t.id] = { ...t, entityType: 'target' }; });
+    return map;
+  }, [targets]);
+
+  // Combined map for looking up any entity (source or target)
+  const entitiesMap = useMemo(() => {
+    return { ...sourcesMap, ...targetsMap };
+  }, [sourcesMap, targetsMap]);
+
+  // Helper to get entity by ID and type
+  const getEntity = (id, entityType) => {
+    if (entityType === 'target') {
+      return targetsMap[id];
+    }
+    return sourcesMap[id];
+  };
 
   // Filter relationships
   const filteredRelationships = useMemo(() => {
     return relationships.filter(rel => {
       const source = sourcesMap[rel.sourceId];
-      const target = sourcesMap[rel.targetId];
+      const target = rel.targetType === 'target' ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
       
       const matchesSearch = !search || 
         source?.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -54,14 +76,14 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
       
       return matchesSearch && matchesType;
     });
-  }, [relationships, sourcesMap, search, typeFilter]);
+  }, [relationships, sourcesMap, targetsMap, search, typeFilter]);
 
   // Group relationships by source
   const relationshipsBySource = useMemo(() => {
     const grouped = {};
     sources.forEach(source => {
       const outgoing = relationships.filter(r => r.sourceId === source.id);
-      const incoming = relationships.filter(r => r.targetId === source.id);
+      const incoming = relationships.filter(r => r.targetId === source.id && r.targetType !== 'target');
       if (outgoing.length > 0 || incoming.length > 0) {
         grouped[source.id] = {
           source,
@@ -72,6 +94,11 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
     });
     return grouped;
   }, [sources, relationships]);
+
+  // Count relationships to targets
+  const targetRelationshipsCount = useMemo(() => {
+    return relationships.filter(r => r.targetType === 'target').length;
+  }, [relationships]);
 
   // Get icon component for relationship type
   const getTypeIcon = (type) => {
@@ -110,6 +137,19 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
   const getStatusColor = (status) => {
     const opt = statusOptions.find(s => s.value === status);
     return opt?.color || 'gray';
+  };
+
+  const getTargetStatusColor = (status) => {
+    const opt = targetStatusOptions.find(s => s.value === status);
+    return opt?.color || 'gray';
+  };
+
+  // Helper to get status color for any entity
+  const getEntityStatusColor = (entity, entityType) => {
+    if (entityType === 'target') {
+      return getTargetStatusColor(entity?.status);
+    }
+    return getStatusColor(entity?.status);
   };
 
   return (
@@ -235,10 +275,13 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredRelationships.map(rel => {
                 const source = sourcesMap[rel.sourceId];
-                const target = sourcesMap[rel.targetId];
+                const isTargetDestination = rel.targetType === 'target';
+                const destination = isTargetDestination ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
                 const TypeIcon = getTypeIcon(rel.type);
                 const typeColor = getTypeColor(rel.type);
                 const relType = relationshipTypes.find(t => t.value === rel.type);
+                const destStatusColor = isTargetDestination ? getTargetStatusColor(destination?.status) : getStatusColor(destination?.status);
+                const targetTypeInfo = isTargetDestination ? targetTypes.find(t => t.value === destination?.type) : null;
                 
                 return (
                   <div 
@@ -249,12 +292,13 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
                       {/* Source */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
+                          <Database className="h-3.5 w-3.5 text-gray-400" />
                           <div className={`w-2 h-2 rounded-full bg-${getStatusColor(source?.status)}-500`} />
                           <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                             {source?.name || 'Unknown Source'}
                           </span>
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{source?.category}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 ml-5">{source?.category}</div>
                       </div>
 
                       {/* Relationship Type */}
@@ -263,15 +307,29 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
                         <span className="text-xs font-medium">{relType?.label}</span>
                       </div>
 
-                      {/* Target */}
+                      {/* Destination (Target or Source) */}
                       <div className="flex-1 min-w-0 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {target?.name || 'Unknown Target'}
+                            {destination?.name || 'Unknown'}
                           </span>
-                          <div className={`w-2 h-2 rounded-full bg-${getStatusColor(target?.status)}-500`} />
+                          <div className={`w-2 h-2 rounded-full bg-${destStatusColor}-500`} />
+                          {isTargetDestination ? (
+                            <Target className="h-3.5 w-3.5 text-purple-500" />
+                          ) : (
+                            <Database className="h-3.5 w-3.5 text-gray-400" />
+                          )}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{target?.category}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {isTargetDestination ? (
+                            <span className="flex items-center justify-end gap-1">
+                              <span className="text-purple-500">{targetTypeInfo?.label || destination?.type}</span>
+                              {destination?.vendor && <span>• {destination.vendor}</span>}
+                            </span>
+                          ) : (
+                            destination?.category
+                          )}
+                        </div>
                       </div>
 
                       {/* Actions */}
@@ -306,13 +364,16 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
         /* Graph View */
         <GraphView
           sources={sources}
+          targets={targets}
           relationships={relationships}
           sourcesMap={sourcesMap}
+          targetsMap={targetsMap}
           relationshipsBySource={relationshipsBySource}
           getTypeIcon={getTypeIcon}
           getTypeColor={getTypeColor}
           getColorClasses={getColorClasses}
           getStatusColor={getStatusColor}
+          getTargetStatusColor={getTargetStatusColor}
           expandedSource={expandedSource}
           setExpandedSource={setExpandedSource}
           onEdit={setEditingRelationship}
@@ -325,6 +386,7 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
         <RelationshipModal
           relationship={editingRelationship}
           sources={sources}
+          targets={targets}
           onClose={() => {
             setShowAddModal(false);
             setEditingRelationship(null);
@@ -346,6 +408,7 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
         <DeleteConfirmModal
           relationship={deleteConfirm}
           sourcesMap={sourcesMap}
+          targetsMap={targetsMap}
           onClose={() => setDeleteConfirm(null)}
           onConfirm={async () => {
             await onDelete(deleteConfirm.id);
@@ -358,14 +421,17 @@ function Relationships({ sources, relationships, onCreate, onUpdate, onDelete })
 }
 
 function GraphView({ 
-  sources, 
+  sources,
+  targets, 
   relationships, 
-  sourcesMap, 
+  sourcesMap,
+  targetsMap, 
   relationshipsBySource, 
   getTypeIcon, 
   getTypeColor, 
   getColorClasses, 
   getStatusColor,
+  getTargetStatusColor,
   expandedSource,
   setExpandedSource,
   onEdit,
@@ -387,6 +453,7 @@ function GraphView({
             >
               <div className="flex items-center gap-3">
                 {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                <Database className="h-4 w-4 text-gray-400" />
                 <div className={`w-3 h-3 rounded-full bg-${getStatusColor(data.source.status)}-500`} />
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{data.source.name}</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">({data.source.category})</span>
@@ -407,10 +474,13 @@ function GraphView({
                     </div>
                     <div className="space-y-2">
                       {data.outgoing.map(rel => {
-                        const target = sourcesMap[rel.targetId];
+                        const isTargetDest = rel.targetType === 'target';
+                        const destination = isTargetDest ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
                         const TypeIcon = getTypeIcon(rel.type);
                         const typeColor = getTypeColor(rel.type);
                         const relType = relationshipTypes.find(t => t.value === rel.type);
+                        const destStatusColor = isTargetDest ? getTargetStatusColor(destination?.status) : getStatusColor(destination?.status);
+                        const targetTypeInfo = isTargetDest ? targetTypes.find(t => t.value === destination?.type) : null;
                         
                         return (
                           <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
@@ -419,11 +489,22 @@ function GraphView({
                               <TypeIcon className="h-3 w-3" />
                               {relType?.label}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-gray-900 dark:text-white">{target?.name || 'Unknown'}</span>
-                              {rel.description && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
+                            <div className="flex-1 min-w-0 flex items-center gap-2">
+                              {isTargetDest ? (
+                                <Target className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
+                              ) : (
+                                <Database className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                               )}
+                              <div className={`w-2 h-2 rounded-full bg-${destStatusColor}-500 flex-shrink-0`} />
+                              <div className="min-w-0">
+                                <span className="text-sm text-gray-900 dark:text-white">{destination?.name || 'Unknown'}</span>
+                                {isTargetDest && targetTypeInfo && (
+                                  <span className="text-xs text-purple-500 ml-1">({targetTypeInfo.label})</span>
+                                )}
+                                {rel.description && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-1">
                               <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
