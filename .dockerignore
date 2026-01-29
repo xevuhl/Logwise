@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+client/node_modules
+
+# Build output
+client/dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (if any)
+.env
+.env.local
+.env.*.local
+
+# Docker files (don't need to copy these into the image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md

@@ -1,0 +1,18 @@
+version: '3.8'
+
+# Development override - use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  logwise:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"   # Backend
+      - "5173:5173"   # Vite dev server
+    volumes:
+      - ./server:/app/server
+      - ./client:/app/client
+      - ./data:/app/data
+      - /app/client/node_modules  # Prevent overwriting node_modules
+    environment:
+      - NODE_ENV=development

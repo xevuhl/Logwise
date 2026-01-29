@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  logwise:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: logwise
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist database data outside container
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+
+# Development configuration (use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up)
