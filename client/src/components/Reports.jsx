@@ -240,7 +240,7 @@ function Reports({ sources, assessments, validationTests }) {
           </button>
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors print:hidden"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs btn-gradient text-white rounded print:hidden"
           >
             <Download className="h-3.5 w-3.5" />
             Export

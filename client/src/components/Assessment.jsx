@@ -100,7 +100,7 @@ function Assessment({ assessments, onSave, sources }) {
         </div>
         <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
           <div 
-            className="h-full bg-primary-500 rounded-sm transition-all duration-500"
+            className="h-full bg-gradient-brand rounded-sm transition-all duration-500"
             style={{ width: `${(totalAnswered / assessmentQuestions.length) * 100}%` }}
           />
         </div>
@@ -492,7 +492,7 @@ function LinkedSourcesSelect({ sources, selectedSources, onChange, suggestedSour
               </span>
               <button
                 onClick={() => setIsOpen(false)}
-                className="px-2 py-1 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+                className="px-2 py-1 text-xs btn-gradient text-white rounded transition-colors"
               >
                 Done
               </button>

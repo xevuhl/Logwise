@@ -129,7 +129,7 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
         </div>
         <button
           onClick={() => setShowCampaignModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm btn-gradient text-white rounded"
         >
           <Plus className="h-4 w-4" />
           New Campaign
@@ -554,7 +554,7 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
         
         <button
           onClick={() => onRunTest(test)}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs btn-gradient text-white rounded"
         >
           <Play className="h-3.5 w-3.5" />
           {test.result ? 'Re-test' : 'Run Test'}
@@ -1136,7 +1136,7 @@ function RunTestModal({ test, onClose, onSave, sources, campaigns, selectedCampa
                             }
                           }}
                           disabled={!newEvidence.name || !newEvidence.url}
-                          className="p-1.5 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
+                          className="p-1.5 btn-gradient text-white rounded disabled:opacity-50 transition-colors"
                         >
                           <Plus className="h-4 w-4" />
                         </button>
@@ -1162,7 +1162,7 @@ function RunTestModal({ test, onClose, onSave, sources, campaigns, selectedCampa
           <button
             onClick={handleSave}
             disabled={saving || formData.logCaptured === null}
-            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 btn-gradient text-white rounded disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving...' : 'Save Result'}
           </button>
@@ -1314,7 +1314,7 @@ function CampaignModal({ campaign, onClose, onSave }) {
           <button
             onClick={handleSave}
             disabled={saving || !formData.name.trim()}
-            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 btn-gradient text-white rounded disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving...' : campaign ? 'Update Campaign' : 'Create Campaign'}
           </button>

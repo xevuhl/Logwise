@@ -94,7 +94,7 @@ function Dashboard({ stats, sources, assessments }) {
                   </div>
                   <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-sm overflow-hidden">
                     <div 
-                      className="h-full bg-primary-500 rounded-sm transition-all duration-500"
+                      className="h-full bg-gradient-brand rounded-sm transition-all duration-500"
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
@@ -162,18 +162,24 @@ function Dashboard({ stats, sources, assessments }) {
 
 function StatCard({ title, value, subtitle, icon: Icon, color }) {
   const colorClasses = {
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    blue: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
     green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
     red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-    orange: 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400',
+    orange: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
   };
 
+  const isGradient = color === 'orange';
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className={`rounded p-4 shadow-sm border ${
+      isGradient 
+        ? 'bg-gradient-brand-subtle border-purple-200 dark:border-purple-800' 
+        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+    }`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-600 dark:text-gray-400">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
+          <p className={`text-2xl font-bold mt-0.5 ${isGradient ? 'text-gradient-brand' : 'text-gray-900 dark:text-white'}`}>{value}</p>
           {subtitle && (
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{subtitle}</p>
           )}

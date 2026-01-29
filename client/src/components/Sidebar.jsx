@@ -11,8 +11,8 @@ import {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortcut: '1' },
-  { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '2' },
-  { id: 'inventory', label: 'Inventory', icon: Database, shortcut: '3' },
+  { id: 'inventory', label: 'Inventory', icon: Database, shortcut: '2' },
+  { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '3' },
   { id: 'validation', label: 'Validation', icon: FlaskConical, shortcut: '4' },
   { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '5' },
   { id: 'audit', label: 'Audit Log', icon: History, shortcut: '6' },
@@ -38,7 +38,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
       </button>
 
       {/* Navigation */}
-      <nav className="p-2 space-y-0.5">
+      <nav className="p-2.5 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -47,18 +47,18 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded text-sm transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-all ${
                 isActive
-                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+                  ? 'bg-gradient-brand-subtle text-cyan-700 dark:text-cyan-400 shadow-sm'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
               title={collapsed ? `${item.label} (${item.shortcut})` : undefined}
             >
-              <Icon className="h-4 w-4 flex-shrink-0" />
+              <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? 'text-purple-500' : ''}`} />
               {!collapsed && (
                 <>
-                  <span className="flex-1 text-left font-medium text-[13px]">{item.label}</span>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500">{item.shortcut}</span>
+                  <span className="flex-1 text-left font-medium text-sm">{item.label}</span>
+                  <span className="text-[11px] text-gray-400 dark:text-gray-500">{item.shortcut}</span>
                 </>
               )}
             </button>
@@ -81,7 +81,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-600 dark:text-gray-400">Assessment</span>
-              <span className="font-medium text-primary-600 dark:text-primary-400">{stats.assessmentScore}%</span>
+              <span className="font-medium text-gradient-brand">{stats.assessmentScore}%</span>
             </div>
           </div>
         </div>

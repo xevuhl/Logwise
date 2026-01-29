@@ -91,7 +91,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
           )}
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs btn-gradient text-white rounded"
           >
             <Plus className="h-3.5 w-3.5" />
             Quick Add
@@ -553,7 +553,7 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
         <button
           onClick={onSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 btn-gradient text-white rounded disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
           {saving ? 'Saving...' : 'Save'}
@@ -659,7 +659,7 @@ function TagSelector({ selectedTags, onChange }) {
               <button
                 type="button"
                 onClick={addCustomTag}
-                className="px-2 py-1 text-xs bg-primary-500 text-white rounded hover:bg-primary-600"
+                className="px-2 py-1 text-xs btn-gradient text-white rounded"
               >
                 Add
               </button>
@@ -915,7 +915,7 @@ function AddSourceModal({ onClose, onCreate, allCategories }) {
           <button
             type="submit"
             disabled={saving || !formData.name.trim()}
-            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 btn-gradient text-white rounded disabled:opacity-50"
           >
             {saving ? 'Adding...' : 'Add Source'}
           </button>
@@ -1005,7 +1005,7 @@ function ImportModal({ onClose, onImport }) {
           <button
             onClick={handleImport}
             disabled={importing || !jsonText.trim()}
-            className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 btn-gradient text-white rounded disabled:opacity-50"
           >
             {importing ? 'Importing...' : 'Import'}
           </button>

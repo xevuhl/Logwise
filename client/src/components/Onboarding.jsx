@@ -151,7 +151,7 @@ function Onboarding({ sources, onCreate, onClose }) {
                       status === 'complete' 
                         ? 'bg-green-500 text-white' 
                         : status === 'current'
-                        ? 'bg-primary-500 text-white'
+                        ? 'bg-gradient-brand text-white'
                         : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
                     }`}>
                       {status === 'complete' ? (
@@ -241,7 +241,7 @@ function Onboarding({ sources, onCreate, onClose }) {
           {currentStep < onboardingSteps.length - 1 ? (
             <button
               onClick={handleNext}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium btn-gradient text-white rounded"
             >
               Next
               <ChevronRight className="h-4 w-4" />
