@@ -30,11 +30,7 @@ import {
   statusOptions,
   criticalityTierOptions,
   defaultTagOptions,
-  validationTestLibrary,
-  mitreTactics,
-  mitreDataSources,
-  calculateMitreCoverage,
-  techniqueToDataSources
+  validationTestLibrary
 } from '../constants';
 
 function Reports({ sources, assessments, validationTests }) {
@@ -119,26 +115,23 @@ function Reports({ sources, assessments, validationTests }) {
     const detectionRate = tests.length > 0 ? Math.round((passedTests / tests.length) * 100) : 0;
     const testCoverage = totalLibraryTests > 0 ? Math.round((tests.length / totalLibraryTests) * 100) : 0;
 
-    // MITRE coverage from library
-    const mitreCategories = {};
+    // Tactic coverage from validation library (for reporting purposes)
+    const tacticCategories = {};
     validationTestLibrary.forEach(libTest => {
       const tactic = libTest.tactic;
-      if (!mitreCategories[tactic]) {
-        mitreCategories[tactic] = { total: 0, tested: 0, passed: 0, partial: 0, failed: 0 };
+      if (!tacticCategories[tactic]) {
+        tacticCategories[tactic] = { total: 0, tested: 0, passed: 0, partial: 0, failed: 0 };
       }
-      mitreCategories[tactic].total++;
+      tacticCategories[tactic].total++;
       
       const result = resultsMap[libTest.id];
       if (result) {
-        mitreCategories[tactic].tested++;
-        if (result.logCaptured && result.detectionFired) mitreCategories[tactic].passed++;
-        else if (result.logCaptured) mitreCategories[tactic].partial++;
-        else mitreCategories[tactic].failed++;
+        tacticCategories[tactic].tested++;
+        if (result.logCaptured && result.detectionFired) tacticCategories[tactic].passed++;
+        else if (result.logCaptured) tacticCategories[tactic].partial++;
+        else tacticCategories[tactic].failed++;
       }
     });
-
-    // Calculate MITRE ATT&CK coverage from log sources
-    const mitreCoverage = calculateMitreCoverage(sources);
 
     return {
       totalSources,
@@ -158,9 +151,8 @@ function Reports({ sources, assessments, validationTests }) {
       notTestedCount,
       detectionRate,
       testCoverage,
-      mitreCategories,
-      resultsMap,
-      mitreCoverage
+      tacticCategories,
+      resultsMap
     };
   }, [sources, assessments, validationTests]);
 
@@ -622,15 +614,15 @@ function ValidationReport({ metrics, gaps, expandedSections, toggleSection }) {
         </div>
       </div>
 
-      {/* MITRE ATT&CK Coverage by Tactic */}
+      {/* Validation Coverage by Tactic */}
       <CollapsibleSection
-        title="Coverage by MITRE ATT&CK Tactic"
-        icon={Shield}
-        isExpanded={expandedSections['mitreTactics'] !== false}
-        onToggle={() => toggleSection('mitreTactics')}
+        title="Validation Coverage by Tactic"
+        icon={Activity}
+        isExpanded={expandedSections['tacticCoverage'] !== false}
+        onToggle={() => toggleSection('tacticCoverage')}
       >
         <div className="space-y-3">
-          {Object.entries(metrics.mitreCategories).map(([tactic, data]) => {
+          {Object.entries(metrics.tacticCategories).map(([tactic, data]) => {
             const testedPct = data.total > 0 ? Math.round((data.tested / data.total) * 100) : 0;
             const passedPct = data.tested > 0 ? Math.round((data.passed / data.tested) * 100) : 0;
             
@@ -885,7 +877,7 @@ function GapAnalysis({ gaps, metrics, expandedSections, toggleSection }) {
               <div key={test.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-white">{test.name}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{test.mitreId} - {test.mitreCategory}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{test.technique} - {test.tactic}</div>
                 </div>
                 <span className={`px-2 py-0.5 text-xs rounded ${
                   test.result === 'fail' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
@@ -1108,16 +1100,16 @@ function CoverageDetails({ metrics, sources, expandedSections, toggleSection }) 
         </div>
       </CollapsibleSection>
 
-      {/* MITRE ATT&CK Coverage */}
-      {Object.keys(metrics.mitreCategories).length > 0 && (
+      {/* Validation Tactic Coverage */}
+      {Object.keys(metrics.tacticCategories).length > 0 && (
         <CollapsibleSection
-          title="MITRE ATT&CK Coverage"
-          icon={Shield}
-          isExpanded={expandedSections['mitre']}
-          onToggle={() => toggleSection('mitre')}
+          title="Validation by Tactic"
+          icon={Activity}
+          isExpanded={expandedSections['tactics']}
+          onToggle={() => toggleSection('tactics')}
         >
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {Object.entries(metrics.mitreCategories).map(([cat, data]) => {
+            {Object.entries(metrics.tacticCategories).map(([cat, data]) => {
               const coverage = data.total > 0 ? Math.round((data.passed / data.total) * 100) : 0;
               return (
                 <div key={cat} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
@@ -2212,8 +2204,8 @@ function ReportPreviewModal({
 
                   <div className="section">
                     <div className="section-title">
-                      <span className="icon">🛡️</span>
-                      Coverage by MITRE ATT&CK Tactic
+                      <span className="icon">�</span>
+                      Validation Coverage by Tactic
                     </div>
                     <table>
                       <thead>
@@ -2227,7 +2219,7 @@ function ReportPreviewModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.entries(metrics.mitreCategories || {}).map(([tactic, data]) => {
+                        {Object.entries(metrics.tacticCategories || {}).map(([tactic, data]) => {
                           const detectionPct = data.tested > 0 ? Math.round((data.passed / data.tested) * 100) : 0;
                           return (
                             <tr key={tactic}>
@@ -2272,7 +2264,7 @@ function ReportPreviewModal({
                         <thead>
                           <tr>
                             <th>Test Name</th>
-                            <th>MITRE Technique</th>
+                            <th>Technique</th>
                             <th>Tactic</th>
                             <th>Status</th>
                           </tr>
@@ -2302,14 +2294,14 @@ function ReportPreviewModal({
                         <h4>Action Required</h4>
                         <ul>
                           <li>These tests captured logs successfully but no SIEM alerts are configured</li>
-                          <li>Consider creating detection rules for these MITRE ATT&CK techniques</li>
+                          <li>Consider creating detection rules for these techniques</li>
                         </ul>
                       </div>
                       <table>
                         <thead>
                           <tr>
                             <th>Test Name</th>
-                            <th>MITRE Technique</th>
+                            <th>Technique</th>
                             <th>Tactic</th>
                             <th>Status</th>
                           </tr>
@@ -2339,7 +2331,7 @@ function ReportPreviewModal({
                         <thead>
                           <tr>
                             <th>Test Name</th>
-                            <th>MITRE Technique</th>
+                            <th>Technique</th>
                             <th>Tactic</th>
                             <th>Status</th>
                           </tr>

@@ -15,7 +15,6 @@ import {
   Mail,
   Clock,
   Database,
-  Shield,
   Tag,
   CheckCircle,
   XCircle,
@@ -25,7 +24,7 @@ import {
   Layers,
   Activity
 } from 'lucide-react';
-import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions, calculateMitreCoverage, validationTestLibrary, categoryToDataSources, techniqueToDataSources } from '../constants';
+import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions, validationTestLibrary } from '../constants';
 
 function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding, targets, relationships, validationTests }) {
   const [search, setSearch] = useState('');
@@ -48,33 +47,15 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
     const blocked = sources.filter(s => s.status === 'blocked').length;
     const collectionRate = total > 0 ? Math.round(((collected + partial * 0.5) / total) * 100) : 0;
     
-    // MITRE coverage contribution
-    const mitreCoverage = calculateMitreCoverage(sources);
-    
-    // Validation coverage - how many techniques can we test based on our data sources
-    const providedDataSources = new Set();
-    sources
-      .filter(s => s.status === 'collected' || s.status === 'partial')
-      .forEach(source => {
-        const categoryDS = categoryToDataSources[source.category] || [];
-        categoryDS.forEach(ds => providedDataSources.add(ds));
-      });
-    
-    // Count tests that have data source coverage
-    const testsWithCoverage = validationTestLibrary.filter(test => {
-      const requiredDS = techniqueToDataSources[test.technique] || [];
-      return requiredDS.length > 0 && requiredDS.some(ds => providedDataSources.has(ds));
-    }).length;
-    const validationCoverage = validationTestLibrary.length > 0 
-      ? Math.round((testsWithCoverage / validationTestLibrary.length) * 100) 
-      : 0;
-    
     // Target assignments
     const sourcesWithTargets = sources.filter(s => s.targetId).length;
     const targetAssignmentRate = total > 0 ? Math.round((sourcesWithTargets / total) * 100) : 0;
     
     // Relationship count
     const relationshipCount = (relationships || []).length;
+    
+    // Validation tests count
+    const testsAvailable = validationTestLibrary.length;
     
     return {
       total,
@@ -84,12 +65,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       notCollected,
       blocked,
       collectionRate,
-      mitreTechniques: mitreCoverage.summary.fullyCovered,
-      mitreTotalTechniques: mitreCoverage.summary.totalTechniques,
-      dataSourcesProvided: mitreCoverage.dataSourcesProvided.length,
-      validationCoverage,
-      testsWithCoverage,
-      totalTests: validationTestLibrary.length,
+      testsAvailable,
       sourcesWithTargets,
       targetAssignmentRate,
       relationshipCount,
@@ -185,18 +161,11 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
           color={stats.collectionRate >= 80 ? 'green' : stats.collectionRate >= 50 ? 'yellow' : 'red'}
         />
         <StatCard
-          title="MITRE Coverage"
-          value={stats.mitreTechniques}
-          subtitle={`of ${stats.mitreTotalTechniques} techniques`}
-          icon={Shield}
-          color="purple"
-        />
-        <StatCard
-          title="Validation Ready"
-          value={`${stats.validationCoverage}%`}
-          subtitle={`${stats.testsWithCoverage}/${stats.totalTests} tests coverable`}
+          title="Validation Tests"
+          value={stats.testsAvailable}
+          subtitle="available in library"
           icon={Activity}
-          color="orange"
+          color="purple"
         />
         <StatCard
           title="Integrations"

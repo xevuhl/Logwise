@@ -27,7 +27,8 @@ import {
   Activity,
   HardDrive,
   Clock,
-  Link2
+  Link2,
+  CheckCircle
 } from 'lucide-react';
 import { targetTypes, targetStatusOptions } from '../constants';
 
@@ -125,15 +126,31 @@ function Targets({ targets, sources, relationships, onCreate, onUpdate, onDelete
     return map;
   }, [targets, sources]);
 
+  // Calculate relationships to each target
+  const relationshipsPerTarget = useMemo(() => {
+    const map = {};
+    targets.forEach(target => {
+      const targetRelationships = (relationships || []).filter(r => 
+        r.targetType === 'target' && r.targetId === target.id
+      );
+      map[target.id] = targetRelationships;
+    });
+    return map;
+  }, [targets, relationships]);
+
   // Stats
-  const stats = useMemo(() => ({
-    total: targets.length,
-    active: targets.filter(t => t.status === 'active').length,
-    byType: targetTypes.reduce((acc, type) => {
-      acc[type.value] = targets.filter(t => t.type === type.value).length;
-      return acc;
-    }, {}),
-  }), [targets]);
+  const stats = useMemo(() => {
+    const totalRelationshipsToTargets = (relationships || []).filter(r => r.targetType === 'target').length;
+    return {
+      total: targets.length,
+      active: targets.filter(t => t.status === 'active').length,
+      totalRelationships: totalRelationshipsToTargets,
+      byType: targetTypes.reduce((acc, type) => {
+        acc[type.value] = targets.filter(t => t.type === type.value).length;
+        return acc;
+      }, {}),
+    };
+  }, [targets, relationships]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -196,24 +213,36 @@ function Targets({ targets, sources, relationships, onCreate, onUpdate, onDelete
         </select>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Total Targets</div>
-        </div>
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Active</div>
-        </div>
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.byType['siem'] || 0}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">SIEM Platforms</div>
-        </div>
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.byType['data-lake'] || 0}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Data Lakes</div>
-        </div>
+        <StatCard
+          title="Total Targets"
+          value={stats.total}
+          subtitle={`${stats.byType['siem'] || 0} SIEMs, ${stats.byType['data-lake'] || 0} data lakes`}
+          icon={Target}
+          color="purple"
+        />
+        <StatCard
+          title="Active"
+          value={stats.active}
+          subtitle={stats.active === stats.total ? 'all operational' : `${stats.total - stats.active} inactive`}
+          icon={CheckCircle}
+          color="green"
+        />
+        <StatCard
+          title="Relationships"
+          value={stats.totalRelationships}
+          subtitle="source connections"
+          icon={Link2}
+          color="indigo"
+        />
+        <StatCard
+          title="Log Collectors"
+          value={stats.byType['log-collector'] || 0}
+          subtitle={`${stats.byType['xdr'] || 0} XDR, ${stats.byType['edr'] || 0} EDR`}
+          icon={Server}
+          color="cyan"
+        />
       </div>
 
       {/* Target List */}
@@ -706,6 +735,48 @@ function DeleteConfirmModal({ target, sourcesCount, onClose, onConfirm }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// StatCard component for consistent styling
+function StatCard({ title, value, subtitle, icon: Icon, color = 'blue' }) {
+  const colorClasses = {
+    blue: 'text-blue-500',
+    green: 'text-green-500',
+    yellow: 'text-yellow-500',
+    red: 'text-red-500',
+    purple: 'text-purple-500',
+    indigo: 'text-indigo-500',
+    cyan: 'text-cyan-500',
+    orange: 'text-orange-500',
+  };
+
+  const valueColorClasses = {
+    blue: 'text-blue-600 dark:text-blue-400',
+    green: 'text-green-600 dark:text-green-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    red: 'text-red-600 dark:text-red-400',
+    purple: 'text-purple-600 dark:text-purple-400',
+    indigo: 'text-indigo-600 dark:text-indigo-400',
+    cyan: 'text-cyan-600 dark:text-cyan-400',
+    orange: 'text-orange-600 dark:text-orange-400',
+  };
+
+  return (
+    <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className={`h-4 w-4 ${colorClasses[color]}`} />
+        <span className="text-xs text-gray-500 dark:text-gray-400">{title}</span>
+      </div>
+      <div className={`text-2xl font-bold ${valueColorClasses[color]}`}>
+        {value}
+      </div>
+      {subtitle && (
+        <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }

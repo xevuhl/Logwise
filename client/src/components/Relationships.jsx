@@ -21,7 +21,9 @@ import {
   ArrowRightCircle,
   Network,
   Database,
-  Target
+  Target,
+  Link2,
+  AlertCircle
 } from 'lucide-react';
 import { relationshipTypes, statusOptions, targetTypes, targetStatusOptions } from '../constants';
 
@@ -256,28 +258,36 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
         </select>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{relationships.length}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Total Relationships</div>
-        </div>
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{Object.keys(relationshipsBySource).length}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Connected Sources</div>
-        </div>
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {sources.length - Object.keys(relationshipsBySource).length}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Isolated Sources</div>
-        </div>
-        <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {new Set(relationshipTypes.filter(t => relationships.some(r => r.type === t.value)).map(t => t.value)).size}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Relationship Types Used</div>
-        </div>
+        <StatCard
+          title="Total Relationships"
+          value={relationships.length}
+          subtitle={`${targetRelationshipsCount} to targets`}
+          icon={GitMerge}
+          color="indigo"
+        />
+        <StatCard
+          title="Connected Sources"
+          value={Object.keys(relationshipsBySource).length}
+          subtitle={`of ${sources.length} sources`}
+          icon={Link2}
+          color="green"
+        />
+        <StatCard
+          title="Isolated Sources"
+          value={sources.length - Object.keys(relationshipsBySource).length}
+          subtitle={sources.length - Object.keys(relationshipsBySource).length > 0 ? 'need connections' : 'all connected'}
+          icon={AlertCircle}
+          color={sources.length - Object.keys(relationshipsBySource).length > 0 ? 'yellow' : 'green'}
+        />
+        <StatCard
+          title="Active Targets"
+          value={Object.keys(relationshipsByTarget).length}
+          subtitle={`of ${(targets || []).length} targets`}
+          icon={Target}
+          color="purple"
+        />
       </div>
 
       {/* Content */}
@@ -1056,6 +1066,48 @@ function DeleteConfirmModal({ relationship, sourcesMap, targetsMap, onClose, onC
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// StatCard component for consistent styling
+function StatCard({ title, value, subtitle, icon: Icon, color = 'blue' }) {
+  const colorClasses = {
+    blue: 'text-blue-500',
+    green: 'text-green-500',
+    yellow: 'text-yellow-500',
+    red: 'text-red-500',
+    purple: 'text-purple-500',
+    indigo: 'text-indigo-500',
+    cyan: 'text-cyan-500',
+    orange: 'text-orange-500',
+  };
+
+  const valueColorClasses = {
+    blue: 'text-blue-600 dark:text-blue-400',
+    green: 'text-green-600 dark:text-green-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    red: 'text-red-600 dark:text-red-400',
+    purple: 'text-purple-600 dark:text-purple-400',
+    indigo: 'text-indigo-600 dark:text-indigo-400',
+    cyan: 'text-cyan-600 dark:text-cyan-400',
+    orange: 'text-orange-600 dark:text-orange-400',
+  };
+
+  return (
+    <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className={`h-4 w-4 ${colorClasses[color]}`} />
+        <span className="text-xs text-gray-500 dark:text-gray-400">{title}</span>
+      </div>
+      <div className={`text-2xl font-bold ${valueColorClasses[color]}`}>
+        {value}
+      </div>
+      {subtitle && (
+        <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }

@@ -6,9 +6,9 @@ import {
   XCircle,
   AlertTriangle,
   TrendingUp,
-  Shield
+  FlaskConical
 } from 'lucide-react';
-import { assessmentQuestions, calculateMitreCoverage, validationTestLibrary } from '../constants';
+import { assessmentQuestions, validationTestLibrary } from '../constants';
 
 function Dashboard({ stats, sources, assessments, validationTests }) {
   // Calculate assessment progress by category
@@ -26,9 +26,6 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
     }
     return acc;
   }, {});
-
-  // Calculate MITRE coverage
-  const mitreCoverage = calculateMitreCoverage(sources);
   
   // Calculate validation progress
   const validationProgress = {
@@ -70,10 +67,10 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
           color="red"
         />
         <StatCard
-          title="MITRE Coverage"
-          value={`${Math.round((mitreCoverage.summary.fullyCovered / mitreCoverage.summary.totalTechniques) * 100)}%`}
-          subtitle={`${mitreCoverage.summary.fullyCovered}/${mitreCoverage.summary.totalTechniques} techniques`}
-          icon={Shield}
+          title="Validation Tests"
+          value={`${validationProgress.tested}/${validationProgress.total}`}
+          subtitle={`${validationProgress.passed} passed, ${validationProgress.failed} failed`}
+          icon={FlaskConical}
           color="purple"
         />
         <StatCard
@@ -99,34 +96,36 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
           </div>
         </div>
 
-        {/* MITRE ATT&CK Coverage */}
+        {/* Source Categories */}
         <div className="bg-white dark:bg-gray-800 rounded p-4 shadow-sm border border-gray-200 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-            <Shield className="h-4 w-4 text-red-500" />
-            MITRE ATT&CK Coverage
+            <Database className="h-4 w-4 text-blue-500" />
+            Sources by Category
           </h3>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
-              <div className="text-lg font-bold text-green-600 dark:text-green-400">{mitreCoverage.summary.fullyCovered}</div>
-              <div className="text-[10px] text-green-700 dark:text-green-300">Covered</div>
-            </div>
-            <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
-              <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{mitreCoverage.summary.partiallyCovered}</div>
-              <div className="text-[10px] text-yellow-700 dark:text-yellow-300">Partial</div>
-            </div>
-            <div className="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">{mitreCoverage.summary.notCovered}</div>
-              <div className="text-[10px] text-red-700 dark:text-red-300">Gaps</div>
-            </div>
+          <div className="space-y-2">
+            {(() => {
+              const categories = sources.reduce((acc, s) => {
+                const cat = s.category || 'Uncategorized';
+                acc[cat] = (acc[cat] || 0) + 1;
+                return acc;
+              }, {});
+              return Object.entries(categories)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(([category, count]) => (
+                  <div key={category} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-700 dark:text-gray-300">{category}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{count}</span>
+                  </div>
+                ));
+            })()}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <div className="flex items-center justify-between">
-              <span>Data Sources Provided:</span>
-              <span className="font-medium text-gray-700 dark:text-gray-300">{mitreCoverage.dataSourcesProvided.length}</span>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span>Validation Tests Run:</span>
-              <span className="font-medium text-gray-700 dark:text-gray-300">{validationProgress.tested}/{validationProgress.total}</span>
+          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-between">
+                <span>Validation Tests Run:</span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">{validationProgress.tested}/{validationProgress.total}</span>
+              </div>
             </div>
           </div>
         </div>
