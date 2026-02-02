@@ -446,4 +446,108 @@ export const targets = {
   }
 };
 
+// ============ SOURCE HEALTH VALIDATIONS ============
+
+export const sourceHealth = {
+  getAll() {
+    return readData('source-health.json');
+  },
+  
+  getBySourceId(sourceId) {
+    const all = this.getAll();
+    return all.filter(h => h.sourceId === sourceId).sort((a, b) => 
+      new Date(b.runAt) - new Date(a.runAt)
+    );
+  },
+  
+  getLatestBySourceId(sourceId) {
+    const history = this.getBySourceId(sourceId);
+    return history.length > 0 ? history[0] : null;
+  },
+  
+  getAllLatest() {
+    const all = this.getAll();
+    // Group by sourceId and get latest for each
+    const bySource = {};
+    all.forEach(record => {
+      if (!bySource[record.sourceId] || 
+          new Date(record.runAt) > new Date(bySource[record.sourceId].runAt)) {
+        bySource[record.sourceId] = record;
+      }
+    });
+    return Object.values(bySource);
+  },
+  
+  save(sourceId, checkResults) {
+    const all = this.getAll();
+    
+    // Calculate overall status from check results
+    const statuses = checkResults.map(c => c.status);
+    let overallStatus = 'pass';
+    if (statuses.includes('fail')) overallStatus = 'fail';
+    else if (statuses.includes('warn')) overallStatus = 'warn';
+    
+    const record = {
+      id: generateId(),
+      sourceId,
+      runAt: new Date().toISOString(),
+      checks: checkResults,
+      overallStatus,
+    };
+    
+    all.push(record);
+    writeData('source-health.json', all);
+    return record;
+  },
+  
+  deleteBySourceId(sourceId) {
+    let all = this.getAll();
+    all = all.filter(h => h.sourceId !== sourceId);
+    writeData('source-health.json', all);
+    return true;
+  }
+};
+
+// ============ SOURCE VALIDATION CONFIGS ============
+
+export const sourceValidationConfigs = {
+  getAll() {
+    return readData('source-validation-configs.json');
+  },
+  
+  getBySourceId(sourceId) {
+    const all = this.getAll();
+    return all.find(c => c.sourceId === sourceId);
+  },
+  
+  save(sourceId, config) {
+    const all = this.getAll();
+    const index = all.findIndex(c => c.sourceId === sourceId);
+    
+    const record = {
+      sourceId,
+      ...config,
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (index === -1) {
+      record.id = generateId();
+      record.createdAt = new Date().toISOString();
+      all.push(record);
+    } else {
+      all[index] = { ...all[index], ...record };
+    }
+    
+    writeData('source-validation-configs.json', all);
+    return record;
+  },
+  
+  delete(sourceId) {
+    let all = this.getAll();
+    all = all.filter(c => c.sourceId !== sourceId);
+    writeData('source-validation-configs.json', all);
+    return true;
+  }
+};
+
 console.log('Data storage initialized at:', DATA_DIR);

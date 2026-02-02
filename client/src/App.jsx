@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, sourceHealthAPI, sourceValidationConfigsAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -11,6 +11,7 @@ import Reports from './components/Reports';
 import Onboarding from './components/Onboarding';
 import Relationships from './components/Relationships';
 import Targets from './components/Targets';
+import SourceHealth from './components/SourceHealth';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -32,6 +33,8 @@ function App() {
   const [campaigns, setCampaigns] = useState([]);
   const [relationships, setRelationships] = useState([]);
   const [targets, setTargets] = useState([]);
+  const [healthRecords, setHealthRecords] = useState([]);
+  const [validationConfigs, setValidationConfigs] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,13 +55,15 @@ function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, targetsData, auditData, viewsData] = await Promise.all([
+        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, targetsData, healthData, configsData, auditData, viewsData] = await Promise.all([
           sourcesAPI.getAll(),
           assessmentsAPI.getAll(),
           validationAPI.getAll(),
           campaignsAPI.getAll(),
           relationshipsAPI.getAll(),
           targetsAPI.getAll(),
+          sourceHealthAPI.getAll(),
+          sourceValidationConfigsAPI.getAll(),
           auditAPI.getAll(),
           viewsAPI.getAll(),
         ]);
@@ -75,6 +80,8 @@ function App() {
         setCampaigns(campaignsData);
         setRelationships(relationshipsData);
         setTargets(targetsData);
+        setHealthRecords(healthData);
+        setValidationConfigs(configsData);
         setAuditLog(auditData);
         setSavedViews(viewsData);
         setError(null);
@@ -104,8 +111,9 @@ function App() {
       if (e.key === '4') setActiveTab('relationships');
       if (e.key === '5') setActiveTab('assessment');
       if (e.key === '6') setActiveTab('validation');
-      if (e.key === '7') setActiveTab('reports');
-      if (e.key === '8') setActiveTab('audit');
+      if (e.key === '7') setActiveTab('source-health');
+      if (e.key === '8') setActiveTab('reports');
+      if (e.key === '9') setActiveTab('audit');
       if (e.key === 'd') setDarkMode(prev => !prev);
     }
 
@@ -324,6 +332,55 @@ function App() {
     }
   }, []);
 
+  // Source health operations
+  const handleSaveHealthCheck = useCallback(async (sourceId, checks) => {
+    try {
+      const saved = await sourceHealthAPI.save(sourceId, checks);
+      setHealthRecords(prev => {
+        // Remove old record for this source and add new one
+        const filtered = prev.filter(r => r.sourceId !== sourceId);
+        return [...filtered, saved];
+      });
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return saved;
+    } catch (err) {
+      console.error('Failed to save health check:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleSaveValidationConfig = useCallback(async (sourceId, config) => {
+    try {
+      const saved = await sourceValidationConfigsAPI.save(sourceId, config);
+      setValidationConfigs(prev => {
+        const existing = prev.findIndex(c => c.sourceId === sourceId);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = saved;
+          return updated;
+        }
+        return [...prev, saved];
+      });
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
+      return saved;
+    } catch (err) {
+      console.error('Failed to save validation config:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleRefreshHealth = useCallback(async () => {
+    try {
+      const healthData = await sourceHealthAPI.getAll();
+      setHealthRecords(healthData);
+    } catch (err) {
+      console.error('Failed to refresh health data:', err);
+      throw err;
+    }
+  }, []);
+
   // Export data
   const handleExport = useCallback(async () => {
     try {
@@ -490,6 +547,17 @@ function App() {
               onCreate={handleCreateTarget}
               onUpdate={handleUpdateTarget}
               onDelete={handleDeleteTarget}
+            />
+          )}
+          
+          {activeTab === 'source-health' && (
+            <SourceHealth
+              sources={sources}
+              healthRecords={healthRecords}
+              validationConfigs={validationConfigs}
+              onSaveHealthCheck={handleSaveHealthCheck}
+              onSaveConfig={handleSaveValidationConfig}
+              onRefreshHealth={handleRefreshHealth}
             />
           )}
           

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, sourceHealth, sourceValidationConfigs } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -520,6 +520,127 @@ app.delete('/api/targets/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting target:', error);
     res.status(500).json({ error: 'Failed to delete target' });
+  }
+});
+
+// ============ SOURCE HEALTH VALIDATION API ============
+
+// Get all source health records (latest for each source)
+app.get('/api/source-health', (req, res) => {
+  try {
+    const allLatest = sourceHealth.getAllLatest();
+    res.json(allLatest);
+  } catch (error) {
+    console.error('Error fetching source health:', error);
+    res.status(500).json({ error: 'Failed to fetch source health records' });
+  }
+});
+
+// Get health history for a specific source
+app.get('/api/source-health/:sourceId', (req, res) => {
+  try {
+    const history = sourceHealth.getBySourceId(req.params.sourceId);
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching source health history:', error);
+    res.status(500).json({ error: 'Failed to fetch source health history' });
+  }
+});
+
+// Get latest health for a specific source
+app.get('/api/source-health/:sourceId/latest', (req, res) => {
+  try {
+    const latest = sourceHealth.getLatestBySourceId(req.params.sourceId);
+    res.json(latest);
+  } catch (error) {
+    console.error('Error fetching latest source health:', error);
+    res.status(500).json({ error: 'Failed to fetch latest source health' });
+  }
+});
+
+// Run/save health check for a source
+app.post('/api/source-health/:sourceId', (req, res) => {
+  try {
+    const source = sources.getById(req.params.sourceId);
+    if (!source) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    
+    const { checks } = req.body;
+    const record = sourceHealth.save(req.params.sourceId, checks);
+    
+    auditLog.add('health_check_run', source.name, {
+      overallStatus: record.overallStatus,
+      checksCount: checks.length
+    });
+    
+    res.status(201).json(record);
+  } catch (error) {
+    console.error('Error saving source health check:', error);
+    res.status(500).json({ error: 'Failed to save health check' });
+  }
+});
+
+// Delete health history for a source
+app.delete('/api/source-health/:sourceId', (req, res) => {
+  try {
+    sourceHealth.deleteBySourceId(req.params.sourceId);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting source health history:', error);
+    res.status(500).json({ error: 'Failed to delete health history' });
+  }
+});
+
+// ============ SOURCE VALIDATION CONFIGS API ============
+
+// Get all validation configs
+app.get('/api/source-validation-configs', (req, res) => {
+  try {
+    const configs = sourceValidationConfigs.getAll();
+    res.json(configs);
+  } catch (error) {
+    console.error('Error fetching validation configs:', error);
+    res.status(500).json({ error: 'Failed to fetch validation configs' });
+  }
+});
+
+// Get validation config for a specific source
+app.get('/api/source-validation-configs/:sourceId', (req, res) => {
+  try {
+    const config = sourceValidationConfigs.getBySourceId(req.params.sourceId);
+    res.json(config || null);
+  } catch (error) {
+    console.error('Error fetching validation config:', error);
+    res.status(500).json({ error: 'Failed to fetch validation config' });
+  }
+});
+
+// Save/update validation config for a source
+app.post('/api/source-validation-configs/:sourceId', (req, res) => {
+  try {
+    const source = sources.getById(req.params.sourceId);
+    if (!source) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    
+    const config = sourceValidationConfigs.save(req.params.sourceId, req.body);
+    auditLog.add('validation_config_updated', source.name);
+    res.json(config);
+  } catch (error) {
+    console.error('Error saving validation config:', error);
+    res.status(500).json({ error: 'Failed to save validation config' });
+  }
+});
+
+// Delete validation config for a source
+app.delete('/api/source-validation-configs/:sourceId', (req, res) => {
+  try {
+    sourceValidationConfigs.delete(req.params.sourceId);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting validation config:', error);
+    res.status(500).json({ error: 'Failed to delete validation config' });
   }
 });
 

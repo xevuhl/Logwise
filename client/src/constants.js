@@ -2884,3 +2884,146 @@ export const getRecommendedComponents = (technique, sources) => {
       : []
   }));
 };
+
+// ============================================
+// SOURCE HEALTH VALIDATION
+// ============================================
+
+// Health check types for source validation
+export const healthCheckTypes = [
+  {
+    id: 'delay-threshold',
+    name: 'Ingestion Delay',
+    description: 'Validates logs arrive within expected latency threshold',
+    category: 'Timeliness',
+    icon: 'Clock',
+    configFields: ['maxDelayMinutes'],
+    resultFields: ['avgDelayMinutes', 'maxDelayMinutes', 'lastEventTime'],
+  },
+  {
+    id: 'schema-compliance',
+    name: 'Schema Compliance',
+    description: 'Validates logs match expected field schema',
+    category: 'Quality',
+    icon: 'FileCode',
+    configFields: ['requiredFields', 'fieldTypes'],
+    resultFields: ['presentFields', 'missingFields', 'sampleChecked'],
+  },
+  {
+    id: 'field-population',
+    name: 'Field Population',
+    description: 'Validates required fields are not empty or incorrectly parsed',
+    category: 'Quality',
+    icon: 'CheckSquare',
+    configFields: ['requiredFields', 'nullThreshold'],
+    resultFields: ['sparseFields', 'parseErrors'],
+  },
+  {
+    id: 'retention-lookback',
+    name: 'Retention Lookback',
+    description: 'Validates logs exist back to expected retention date',
+    category: 'Retention',
+    icon: 'Calendar',
+    configFields: ['retentionDays', 'lookbackQuery'],
+    resultFields: ['foundDays', 'earliestEvent', 'queryUsed'],
+  },
+  {
+    id: 'detection-alignment',
+    name: 'Detection Alignment',
+    description: 'Validates alerts fire correctly for linked detections',
+    category: 'Coverage',
+    icon: 'Bell',
+    configFields: ['linkedDetections'],
+    resultFields: ['validatedDetections', 'failedDetections'],
+  },
+  {
+    id: 'storage-tier',
+    name: 'Storage Tier',
+    description: 'Validates logs are in the correct storage tier',
+    category: 'Compliance',
+    icon: 'Database',
+    configFields: ['expectedTier'],
+    resultFields: ['actualTier', 'tierTransitions'],
+  },
+];
+
+// Storage tier options
+export const storageTierOptions = [
+  { value: 'hot', label: 'Hot', description: 'Immediate query access, highest cost', color: 'red' },
+  { value: 'warm', label: 'Warm', description: 'Fast query access, moderate cost', color: 'orange' },
+  { value: 'cold', label: 'Cold', description: 'Slower query access, lower cost', color: 'blue' },
+  { value: 'archive', label: 'Archive', description: 'Requires restore before query, lowest cost', color: 'gray' },
+  { value: 'frozen', label: 'Frozen', description: 'Long-term archive, restore required', color: 'purple' },
+];
+
+// Common field types for schema validation
+export const fieldTypeOptions = [
+  { value: 'string', label: 'String' },
+  { value: 'integer', label: 'Integer' },
+  { value: 'float', label: 'Float' },
+  { value: 'boolean', label: 'Boolean' },
+  { value: 'datetime', label: 'DateTime' },
+  { value: 'ip', label: 'IP Address' },
+  { value: 'mac', label: 'MAC Address' },
+  { value: 'url', label: 'URL' },
+  { value: 'email', label: 'Email' },
+  { value: 'json', label: 'JSON Object' },
+  { value: 'array', label: 'Array' },
+];
+
+// Default validation config template
+export const defaultValidationConfig = {
+  maxDelayMinutes: 5,
+  requiredFields: [],
+  fieldTypes: {},
+  nullThreshold: 10,
+  retentionDays: 90,
+  lookbackQuery: '',
+  linkedDetections: [],
+  expectedTier: 'hot',
+  tierTransitions: {
+    warm: 30,
+    cold: 90,
+    archive: 365,
+  },
+};
+
+// Health check status options
+export const healthCheckStatusOptions = [
+  { value: 'pass', label: 'Pass', color: 'green', icon: 'CheckCircle' },
+  { value: 'warn', label: 'Warning', color: 'yellow', icon: 'AlertTriangle' },
+  { value: 'fail', label: 'Fail', color: 'red', icon: 'XCircle' },
+  { value: 'skip', label: 'Skipped', color: 'gray', icon: 'MinusCircle' },
+];
+
+// Common log fields by category for auto-suggestions
+export const commonFieldsByCategory = {
+  'Network': ['timestamp', 'src_ip', 'dst_ip', 'src_port', 'dst_port', 'protocol', 'action', 'bytes_sent', 'bytes_received', 'rule_id', 'session_id'],
+  'Endpoint': ['timestamp', 'hostname', 'username', 'process_name', 'process_id', 'parent_process', 'command_line', 'file_path', 'registry_key', 'event_id'],
+  'Identity': ['timestamp', 'username', 'src_ip', 'auth_type', 'result', 'target_resource', 'session_id', 'mfa_used', 'location'],
+  'Cloud': ['timestamp', 'user_identity', 'event_name', 'event_source', 'aws_region', 'resource_type', 'resource_id', 'request_parameters', 'response_elements'],
+  'Email': ['timestamp', 'sender', 'recipient', 'subject', 'message_id', 'attachment_count', 'spam_score', 'direction', 'delivery_status'],
+  'Web': ['timestamp', 'client_ip', 'method', 'uri', 'status_code', 'response_size', 'user_agent', 'referrer', 'response_time'],
+  'Database': ['timestamp', 'username', 'database', 'query_type', 'query_text', 'affected_rows', 'execution_time', 'client_ip'],
+  'Application': ['timestamp', 'app_name', 'level', 'message', 'user_id', 'session_id', 'transaction_id', 'stack_trace'],
+};
+
+// Helper to get suggested fields for a source category
+export const getSuggestedFields = (category) => {
+  return commonFieldsByCategory[category] || commonFieldsByCategory['Application'] || [];
+};
+
+// Helper to parse retention value to days
+export const parseRetentionToDays = (retention) => {
+  if (!retention) return 0;
+  const match = retention.match(/^(\d+)([dDmMyY]?)$/);
+  if (!match) return 0;
+  const value = parseInt(match[1], 10);
+  const unit = match[2]?.toLowerCase() || 'd';
+  switch (unit) {
+    case 'd': return value;
+    case 'm': return value * 30;
+    case 'y': return value * 365;
+    default: return value;
+  }
+};

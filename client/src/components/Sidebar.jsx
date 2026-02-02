@@ -8,7 +8,8 @@ import {
   FlaskConical,
   FileBarChart,
   GitMerge,
-  Target
+  Target,
+  Activity
 } from 'lucide-react';
 
 const navItems = [
@@ -18,8 +19,9 @@ const navItems = [
   { id: 'relationships', label: 'Relationships', icon: GitMerge, shortcut: '4' },
   { id: 'assessment', label: 'Assessment', icon: ClipboardCheck, shortcut: '5' },
   { id: 'validation', label: 'Validation', icon: FlaskConical, shortcut: '6' },
-  { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '7' },
-  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '8' },
+  { id: 'source-health', label: 'Source Health', icon: Activity, shortcut: '7' },
+  { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '8' },
+  { id: 'audit', label: 'Audit Log', icon: History, shortcut: '9' },
 ];
 
 function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {

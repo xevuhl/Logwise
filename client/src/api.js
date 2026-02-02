@@ -182,3 +182,48 @@ export const targetsAPI = {
     method: 'DELETE',
   }),
 };
+
+// ============ SOURCE HEALTH VALIDATION ============
+
+export const sourceHealthAPI = {
+  // Get latest health status for all sources
+  getAll: () => fetchAPI('/source-health'),
+  
+  // Get health history for a specific source
+  getHistory: (sourceId) => fetchAPI(`/source-health/${sourceId}`),
+  
+  // Get latest health for a specific source
+  getLatest: (sourceId) => fetchAPI(`/source-health/${sourceId}/latest`),
+  
+  // Save a health check result
+  save: (sourceId, checks) => fetchAPI(`/source-health/${sourceId}`, {
+    method: 'POST',
+    body: JSON.stringify({ checks }),
+  }),
+  
+  // Delete health history for a source
+  delete: (sourceId) => fetchAPI(`/source-health/${sourceId}`, {
+    method: 'DELETE',
+  }),
+};
+
+// ============ SOURCE VALIDATION CONFIGS ============
+
+export const sourceValidationConfigsAPI = {
+  // Get all validation configs
+  getAll: () => fetchAPI('/source-validation-configs'),
+  
+  // Get validation config for a specific source
+  getBySourceId: (sourceId) => fetchAPI(`/source-validation-configs/${sourceId}`),
+  
+  // Save validation config for a source
+  save: (sourceId, config) => fetchAPI(`/source-validation-configs/${sourceId}`, {
+    method: 'POST',
+    body: JSON.stringify(config),
+  }),
+  
+  // Delete validation config for a source
+  delete: (sourceId) => fetchAPI(`/source-validation-configs/${sourceId}`, {
+    method: 'DELETE',
+  }),
+};
