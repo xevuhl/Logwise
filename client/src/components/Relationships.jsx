@@ -33,7 +33,7 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRelationship, setEditingRelationship] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'list', 'graph', or 'targets'
+  const [viewMode, setViewMode] = useState('graph'); // 'graph' (Sources) or 'targets'
   const [expandedSource, setExpandedSource] = useState(null);
   const [expandedTarget, setExpandedTarget] = useState(null);
 
@@ -196,23 +196,14 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
         <div className="flex gap-2">
           <div className="flex bg-gray-100 dark:bg-gray-700 rounded p-0.5">
             <button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                viewMode === 'list' 
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              List
-            </button>
-            <button
               onClick={() => setViewMode('graph')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
+              className={`px-3 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
                 viewMode === 'graph' 
                   ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
+              <Database className="h-3 w-3" />
               Sources
             </button>
             <button
@@ -297,130 +288,7 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
       </div>
 
       {/* Content */}
-      {viewMode === 'list' ? (
-        <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {filteredRelationships.length === 0 ? (
-            <div className="p-8 text-center">
-              <Network className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <div className="text-gray-400 dark:text-gray-500 mb-2 text-sm">No relationships defined</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {relationships.length === 0 
-                  ? 'Start mapping how your log sources connect to each other'
-                  : 'Try adjusting your filters'}
-              </p>
-              {relationships.length === 0 && (
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="mt-4 px-4 py-2 text-sm btn-gradient text-white rounded"
-                >
-                  Create First Relationship
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredRelationships.map(rel => {
-                // Handle both source types (log source or target as source for chained flows)
-                const isTargetSource = rel.sourceType === 'target';
-                const sourceEntity = isTargetSource ? targetsMap[rel.sourceId] : sourcesMap[rel.sourceId];
-                const isTargetDestination = rel.targetType === 'target';
-                const destination = isTargetDestination ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
-                const TypeIcon = getTypeIcon(rel.type);
-                const typeColor = getTypeColor(rel.type);
-                const relType = relationshipTypes.find(t => t.value === rel.type);
-                const sourceStatusColor = isTargetSource ? getTargetStatusColor(sourceEntity?.status) : getStatusColor(sourceEntity?.status);
-                const destStatusColor = isTargetDestination ? getTargetStatusColor(destination?.status) : getStatusColor(destination?.status);
-                const sourceTypeInfo = isTargetSource ? targetTypes.find(t => t.value === sourceEntity?.type) : null;
-                const targetTypeInfo = isTargetDestination ? targetTypes.find(t => t.value === destination?.type) : null;
-                
-                return (
-                  <div 
-                    key={rel.id} 
-                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Source (can be Log Source or Target for chained flows) */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          {isTargetSource ? (
-                            <Target className="h-3.5 w-3.5 text-purple-500" />
-                          ) : (
-                            <Database className="h-3.5 w-3.5 text-gray-400" />
-                          )}
-                          <div className={`w-2 h-2 rounded-full bg-${sourceStatusColor}-500`} />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {sourceEntity?.name || 'Unknown Source'}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 ml-5">
-                          {isTargetSource ? (
-                            <span className="text-purple-500">{sourceTypeInfo?.label || sourceEntity?.type}</span>
-                          ) : (
-                            sourceEntity?.category
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Relationship Type */}
-                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${getColorClasses(typeColor)}`}>
-                        <TypeIcon className="h-3.5 w-3.5" />
-                        <span className="text-xs font-medium">{relType?.label}</span>
-                      </div>
-
-                      {/* Destination (Target or Source) */}
-                      <div className="flex-1 min-w-0 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {destination?.name || 'Unknown'}
-                          </span>
-                          <div className={`w-2 h-2 rounded-full bg-${destStatusColor}-500`} />
-                          {isTargetDestination ? (
-                            <Target className="h-3.5 w-3.5 text-purple-500" />
-                          ) : (
-                            <Database className="h-3.5 w-3.5 text-gray-400" />
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {isTargetDestination ? (
-                            <span className="flex items-center justify-end gap-1">
-                              <span className="text-purple-500">{targetTypeInfo?.label || destination?.type}</span>
-                              {destination?.vendor && <span>• {destination.vendor}</span>}
-                            </span>
-                          ) : (
-                            destination?.category
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 ml-2">
-                        <button
-                          onClick={() => setEditingRelationship(rel)}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(rel)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {rel.description && (
-                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 pl-4">
-                        {rel.description}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ) : viewMode === 'graph' ? (
+      {viewMode === 'graph' ? (
         /* Sources Graph View */
         <GraphView
           sources={sources}
