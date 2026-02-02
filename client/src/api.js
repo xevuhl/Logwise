@@ -227,4 +227,10 @@ export const integrationsAPI = {
     method: 'POST',
     body: JSON.stringify(options),
   }),
+  
+  // ADX-specific: Get table details including schema, mappings, and sample data
+  getAdxTableDetails: (id, tableName) => fetchAPI(`/integrations/${id}/adx/table/${encodeURIComponent(tableName)}`),
+  
+  // ADX-specific: Get all ingestion mappings grouped by table
+  getAdxMappings: (id) => fetchAPI(`/integrations/${id}/adx/mappings`),
 };

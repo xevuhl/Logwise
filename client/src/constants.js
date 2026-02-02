@@ -2945,6 +2945,21 @@ export const integrationTypes = [
     docUrl: 'https://learn.microsoft.com/en-us/rest/api/securityinsights/',
     comingSoon: true,
   },
+  {
+    id: 'adx',
+    name: 'Azure Data Explorer',
+    description: 'Connect to Azure Data Explorer (Kusto) to discover tables, schemas, and ingestion mappings',
+    icon: 'Database',
+    color: 'cyan',
+    configFields: [
+      { id: 'clusterUrl', label: 'Cluster URL', type: 'url', placeholder: 'https://yourcluster.region.kusto.windows.net', required: true },
+      { id: 'database', label: 'Database Name', type: 'text', placeholder: 'Your ADX database name', required: true },
+      { id: 'tenantId', label: 'Tenant ID', type: 'text', placeholder: 'Your Azure AD tenant ID', required: true },
+      { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'App registration client ID', required: true },
+      { id: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'App registration client secret', required: true },
+    ],
+    docUrl: 'https://learn.microsoft.com/en-us/azure/data-explorer/kusto/api/rest/',
+  },
 ];
 
 // Cribl source type to Logwise category mapping
@@ -2990,6 +3005,64 @@ export const criblTypeToLogType = {
   'file': 'file',
   'exec': 'other',
   'snmp': 'other',
+};
+
+// ADX table name patterns to Logwise category mapping
+export const adxTableToCategory = {
+  'SecurityEvent': 'Endpoint',
+  'Syslog': 'Network',
+  'WindowsEvent': 'Endpoint',
+  'AzureActivity': 'Cloud',
+  'AzureDiagnostics': 'Cloud',
+  'SigninLogs': 'Identity',
+  'AADNonInteractiveUserSignInLogs': 'Identity',
+  'AADServicePrincipalSignInLogs': 'Identity',
+  'AuditLogs': 'Identity',
+  'CommonSecurityLog': 'Network',
+  'DeviceNetworkEvents': 'Endpoint',
+  'DeviceProcessEvents': 'Endpoint',
+  'DeviceFileEvents': 'Endpoint',
+  'DeviceRegistryEvents': 'Endpoint',
+  'DeviceLogonEvents': 'Identity',
+  'EmailEvents': 'Application',
+  'OfficeActivity': 'Application',
+  'ThreatIntelligenceIndicator': 'Security',
+  'Heartbeat': 'Endpoint',
+  'Perf': 'Endpoint',
+  'Event': 'Endpoint',
+  'W3CIISLog': 'Web',
+  'AppServiceHTTPLogs': 'Web',
+  'AWSCloudTrail': 'Cloud',
+  'GCPAuditLogs': 'Cloud',
+};
+
+// ADX table name patterns to log type mapping
+export const adxTableToLogType = {
+  'SecurityEvent': 'windows-event',
+  'Syslog': 'syslog',
+  'WindowsEvent': 'windows-event',
+  'AzureActivity': 'json',
+  'AzureDiagnostics': 'json',
+  'SigninLogs': 'json',
+  'AADNonInteractiveUserSignInLogs': 'json',
+  'AADServicePrincipalSignInLogs': 'json',
+  'AuditLogs': 'json',
+  'CommonSecurityLog': 'cef',
+  'DeviceNetworkEvents': 'json',
+  'DeviceProcessEvents': 'json',
+  'DeviceFileEvents': 'json',
+  'DeviceRegistryEvents': 'json',
+  'DeviceLogonEvents': 'json',
+  'EmailEvents': 'json',
+  'OfficeActivity': 'json',
+  'ThreatIntelligenceIndicator': 'json',
+  'Heartbeat': 'json',
+  'Perf': 'json',
+  'Event': 'windows-event',
+  'W3CIISLog': 'iis',
+  'AppServiceHTTPLogs': 'json',
+  'AWSCloudTrail': 'json',
+  'GCPAuditLogs': 'json',
 };
 
 // Import mode options

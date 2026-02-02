@@ -625,6 +625,9 @@ app.post('/api/integrations/:id/test', async (req, res) => {
     if (integration.type === 'cribl') {
       const result = await testCriblConnection(integration);
       res.json(result);
+    } else if (integration.type === 'adx') {
+      const result = await testAdxConnection(integration);
+      res.json(result);
     } else {
       res.status(400).json({ error: 'Unsupported integration type' });
     }
@@ -653,39 +656,83 @@ app.post('/api/integrations/:id/sync', async (req, res) => {
       return res.status(404).json({ error: 'Integration not found' });
     }
     
+    let result;
     if (integration.type === 'cribl') {
-      const result = await syncCriblSources(integration, req.body);
-      
-      // Update integration status
-      integrations.updateSyncStatus(
-        req.params.id, 
-        result.success ? 'synced' : 'error',
-        result.imported || 0
-      );
-      
-      // Log sync history
-      integrationSyncHistory.add(req.params.id, {
-        success: result.success,
-        sourcesFound: result.sourcesFound || 0,
-        sourcesImported: result.imported || 0,
-        sourcesUpdated: result.updated || 0,
-        sourcesSkipped: result.skipped || 0,
-        errors: result.errors || [],
-        message: result.message
-      });
-      
-      auditLog.add('integration_synced', `${integration.type}: ${integration.name}`, {
-        imported: result.imported,
-        updated: result.updated
-      });
-      
-      res.json(result);
+      result = await syncCriblSources(integration, req.body);
+    } else if (integration.type === 'adx') {
+      result = await syncAdxTables(integration, req.body);
     } else {
-      res.status(400).json({ error: 'Unsupported integration type' });
+      return res.status(400).json({ error: 'Unsupported integration type' });
     }
+    
+    // Update integration status
+    integrations.updateSyncStatus(
+      req.params.id, 
+      result.success ? 'synced' : 'error',
+      result.imported || 0
+    );
+    
+    // Log sync history
+    integrationSyncHistory.add(req.params.id, {
+      success: result.success,
+      sourcesFound: result.sourcesFound || 0,
+      sourcesImported: result.imported || 0,
+      sourcesUpdated: result.updated || 0,
+      sourcesSkipped: result.skipped || 0,
+      errors: result.errors || [],
+      message: result.message
+    });
+    
+    auditLog.add('integration_synced', `${integration.type}: ${integration.name}`, {
+      imported: result.imported,
+      updated: result.updated
+    });
+    
+    res.json(result);
   } catch (error) {
     console.error('Error syncing integration:', error);
     res.status(500).json({ error: 'Failed to sync integration', details: error.message });
+  }
+});
+
+// Get detailed table info for ADX integration
+app.get('/api/integrations/:id/adx/table/:tableName', async (req, res) => {
+  try {
+    const integration = integrations.getById(req.params.id);
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+    
+    if (integration.type !== 'adx') {
+      return res.status(400).json({ error: 'Integration is not an ADX integration' });
+    }
+    
+    const tableName = req.params.tableName;
+    const result = await getAdxTableDetails(integration, tableName);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching ADX table details:', error);
+    res.status(500).json({ error: 'Failed to fetch table details', details: error.message });
+  }
+});
+
+// Get ingestion mappings for ADX integration
+app.get('/api/integrations/:id/adx/mappings', async (req, res) => {
+  try {
+    const integration = integrations.getById(req.params.id);
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+    
+    if (integration.type !== 'adx') {
+      return res.status(400).json({ error: 'Integration is not an ADX integration' });
+    }
+    
+    const result = await getAdxMappings(integration);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching ADX mappings:', error);
+    res.status(500).json({ error: 'Failed to fetch mappings', details: error.message });
   }
 });
 
@@ -699,6 +746,9 @@ app.post('/api/integrations/:id/preview', async (req, res) => {
     
     if (integration.type === 'cribl') {
       const result = await fetchCriblSources(integration);
+      res.json(result);
+    } else if (integration.type === 'adx') {
+      const result = await fetchAdxTables(integration);
       res.json(result);
     } else {
       res.status(400).json({ error: 'Unsupported integration type' });
@@ -921,6 +971,494 @@ function mapCriblToLogwise(criblSource, integration) {
     retention: '90d',
     notes: `Auto-imported from Cribl integration "${integration.name}". Original type: ${inputType}`,
     tags: ['cribl-import', inputType]
+  };
+}
+
+// ============ AZURE DATA EXPLORER (ADX) INTEGRATION HELPERS ============
+
+// Get Azure AD access token for ADX
+async function getAdxAccessToken(integration) {
+  const { tenantId, clientId, clientSecret, clusterUrl } = integration;
+  
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  
+  // ADX resource scope
+  const scope = `${clusterUrl}/.default`;
+  
+  const params = new URLSearchParams();
+  params.append('client_id', clientId);
+  params.append('client_secret', clientSecret);
+  params.append('scope', scope);
+  params.append('grant_type', 'client_credentials');
+  
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data.access_token;
+}
+
+// Execute a Kusto query against ADX
+async function executeAdxQuery(integration, query) {
+  const { clusterUrl, database } = integration;
+  const token = await getAdxAccessToken(integration);
+  
+  const queryUrl = `${clusterUrl}/v1/rest/query`;
+  
+  const response = await fetch(queryUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      db: database,
+      csl: query
+    })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Query failed: ${response.status} - ${errorText}`);
+  }
+  
+  return response.json();
+}
+
+// Execute a management command against ADX
+async function executeAdxManagement(integration, command) {
+  const { clusterUrl, database } = integration;
+  const token = await getAdxAccessToken(integration);
+  
+  const mgmtUrl = `${clusterUrl}/v1/rest/mgmt`;
+  
+  const response = await fetch(mgmtUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      db: database,
+      csl: command
+    })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Management command failed: ${response.status} - ${errorText}`);
+  }
+  
+  return response.json();
+}
+
+// Test ADX connection
+async function testAdxConnection(integration) {
+  const { clusterUrl, database } = integration;
+  
+  try {
+    // Try to get database metadata
+    const result = await executeAdxManagement(integration, '.show database schema');
+    
+    return { 
+      success: true, 
+      message: 'Connection successful',
+      cluster: clusterUrl,
+      database: database,
+      details: 'Successfully connected to Azure Data Explorer'
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: `Connection failed: ${error.message}` 
+    };
+  }
+}
+
+// Parse ADX query results to a more usable format
+function parseAdxResults(adxResponse) {
+  if (!adxResponse || !adxResponse.Tables || adxResponse.Tables.length === 0) {
+    return [];
+  }
+  
+  const primaryTable = adxResponse.Tables.find(t => t.TableName === 'PrimaryResult') || adxResponse.Tables[0];
+  
+  if (!primaryTable || !primaryTable.Columns || !primaryTable.Rows) {
+    return [];
+  }
+  
+  const columns = primaryTable.Columns.map(c => c.ColumnName);
+  
+  return primaryTable.Rows.map(row => {
+    const obj = {};
+    columns.forEach((col, idx) => {
+      obj[col] = row[idx];
+    });
+    return obj;
+  });
+}
+
+// Fetch tables from ADX
+async function fetchAdxTables(integration) {
+  try {
+    // Get all tables in the database
+    const tablesResult = await executeAdxManagement(integration, '.show tables details');
+    const tables = parseAdxResults(tablesResult);
+    
+    // Get schema for each table
+    const schemaResult = await executeAdxManagement(integration, '.show database schema as json');
+    const schemaData = parseAdxResults(schemaResult);
+    let schema = {};
+    if (schemaData.length > 0 && schemaData[0].DatabaseSchema) {
+      try {
+        schema = JSON.parse(schemaData[0].DatabaseSchema);
+      } catch (e) {
+        console.error('Failed to parse schema JSON:', e);
+      }
+    }
+    
+    // Get ingestion mappings
+    const mappingsResult = await executeAdxManagement(integration, '.show ingestion mappings');
+    const mappings = parseAdxResults(mappingsResult);
+    
+    // Map tables to Logwise format
+    const mappedSources = tables.map(table => mapAdxTableToLogwise(table, schema, mappings, integration));
+    
+    return {
+      success: true,
+      sources: mappedSources,
+      raw: {
+        tables,
+        schema,
+        mappings
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message,
+      sources: []
+    };
+  }
+}
+
+// Sync ADX tables as log sources
+async function syncAdxTables(integration, options = {}) {
+  const { importMode = 'new-only', selectedSources = null } = options;
+  
+  // Fetch tables from ADX
+  const fetchResult = await fetchAdxTables(integration);
+  
+  if (!fetchResult.success) {
+    return {
+      success: false,
+      message: fetchResult.message,
+      sourcesFound: 0,
+      imported: 0,
+      updated: 0,
+      skipped: 0
+    };
+  }
+  
+  let tablesToProcess = fetchResult.sources;
+  
+  // Filter to selected sources if specified
+  if (selectedSources && selectedSources.length > 0) {
+    tablesToProcess = tablesToProcess.filter(s => 
+      selectedSources.includes(s.adxTableName)
+    );
+  }
+  
+  const existingSources = sources.getAll();
+  let imported = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors = [];
+  
+  for (const newSource of tablesToProcess) {
+    try {
+      // Check if source already exists (by adxTableName or name)
+      const existing = existingSources.find(s => 
+        s.adxTableName === newSource.adxTableName || 
+        s.name.toLowerCase() === newSource.name.toLowerCase()
+      );
+      
+      if (existing) {
+        if (importMode === 'update' || importMode === 'update-all') {
+          // Update existing source
+          sources.update(existing.id, {
+            ...newSource,
+            id: existing.id // Keep original ID
+          });
+          updated++;
+        } else {
+          skipped++;
+        }
+      } else {
+        // Create new source
+        sources.create(newSource);
+        imported++;
+      }
+    } catch (error) {
+      errors.push({ source: newSource.name, error: error.message });
+    }
+  }
+  
+  return {
+    success: true,
+    message: `Sync completed: ${imported} imported, ${updated} updated, ${skipped} skipped`,
+    sourcesFound: fetchResult.sources.length,
+    imported,
+    updated,
+    skipped,
+    errors
+  };
+}
+
+// Get detailed info for a specific ADX table
+async function getAdxTableDetails(integration, tableName) {
+  try {
+    // Get table schema
+    const schemaResult = await executeAdxManagement(integration, `.show table ${tableName} schema as json`);
+    const schemaData = parseAdxResults(schemaResult);
+    let schema = null;
+    if (schemaData.length > 0 && schemaData[0].Schema) {
+      try {
+        schema = JSON.parse(schemaData[0].Schema);
+      } catch (e) {
+        console.error('Failed to parse table schema JSON:', e);
+      }
+    }
+    
+    // Get table details (row count, extent size, etc.)
+    const detailsResult = await executeAdxManagement(integration, `.show table ${tableName} details`);
+    const details = parseAdxResults(detailsResult)[0] || {};
+    
+    // Get caching policy
+    const cachingResult = await executeAdxManagement(integration, `.show table ${tableName} policy caching`);
+    const caching = parseAdxResults(cachingResult)[0] || {};
+    
+    // Get retention policy
+    const retentionResult = await executeAdxManagement(integration, `.show table ${tableName} policy retention`);
+    const retention = parseAdxResults(retentionResult)[0] || {};
+    
+    // Get ingestion mappings for this table
+    const mappingsResult = await executeAdxManagement(integration, `.show table ${tableName} ingestion mappings`);
+    const mappings = parseAdxResults(mappingsResult);
+    
+    // Get sample data (first 5 rows)
+    let sampleData = [];
+    try {
+      const sampleResult = await executeAdxQuery(integration, `${tableName} | take 5`);
+      sampleData = parseAdxResults(sampleResult);
+    } catch (e) {
+      // Sample query might fail if table is empty or no access
+      console.log('Could not fetch sample data:', e.message);
+    }
+    
+    return {
+      success: true,
+      tableName,
+      schema,
+      details: {
+        rowCount: details.TotalRowCount || details.RowCount || 0,
+        extentCount: details.TotalExtentCount || details.ExtentCount || 0,
+        originalSize: details.TotalOriginalSize || details.OriginalSize || 0,
+        compressedSize: details.TotalExtentSize || details.ExtentSize || 0,
+        folder: details.Folder || null,
+        docString: details.DocString || null
+      },
+      policies: {
+        caching: caching.Policy ? JSON.parse(caching.Policy) : null,
+        retention: retention.Policy ? JSON.parse(retention.Policy) : null
+      },
+      mappings: mappings.map(m => ({
+        name: m.Name || m.MappingName,
+        kind: m.Kind || m.MappingKind,
+        mapping: m.Mapping ? JSON.parse(m.Mapping) : null,
+        lastUpdated: m.LastUpdatedOn
+      })),
+      sampleData
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message
+    };
+  }
+}
+
+// Get all ingestion mappings for ADX database
+async function getAdxMappings(integration) {
+  try {
+    // Get all ingestion mappings
+    const mappingsResult = await executeAdxManagement(integration, '.show ingestion mappings');
+    const mappings = parseAdxResults(mappingsResult);
+    
+    // Group mappings by table
+    const mappingsByTable = {};
+    for (const mapping of mappings) {
+      const tableName = mapping.Table || mapping.EntityName || 'Unknown';
+      if (!mappingsByTable[tableName]) {
+        mappingsByTable[tableName] = [];
+      }
+      
+      let parsedMapping = null;
+      try {
+        parsedMapping = mapping.Mapping ? JSON.parse(mapping.Mapping) : null;
+      } catch (e) {
+        // Ignore parse errors
+      }
+      
+      mappingsByTable[tableName].push({
+        name: mapping.Name || mapping.MappingName,
+        kind: mapping.Kind || mapping.MappingKind,
+        mapping: parsedMapping,
+        lastUpdated: mapping.LastUpdatedOn
+      });
+    }
+    
+    return {
+      success: true,
+      totalMappings: mappings.length,
+      mappingsByTable
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message
+    };
+  }
+}
+
+// Map ADX table to Logwise source format
+function mapAdxTableToLogwise(table, schema, mappings, integration) {
+  const tableName = table.TableName;
+  
+  // ADX table name patterns to Logwise category mapping
+  const tableToCategory = {
+    'SecurityEvent': 'Endpoint',
+    'Syslog': 'Network',
+    'WindowsEvent': 'Endpoint',
+    'AzureActivity': 'Cloud',
+    'AzureDiagnostics': 'Cloud',
+    'SigninLogs': 'Identity',
+    'AADNonInteractiveUserSignInLogs': 'Identity',
+    'AADServicePrincipalSignInLogs': 'Identity',
+    'AuditLogs': 'Identity',
+    'CommonSecurityLog': 'Network',
+    'DeviceNetworkEvents': 'Endpoint',
+    'DeviceProcessEvents': 'Endpoint',
+    'DeviceFileEvents': 'Endpoint',
+    'DeviceRegistryEvents': 'Endpoint',
+    'DeviceLogonEvents': 'Identity',
+    'EmailEvents': 'Application',
+    'OfficeActivity': 'Application',
+    'ThreatIntelligenceIndicator': 'Security',
+    'Heartbeat': 'Endpoint',
+    'Perf': 'Endpoint',
+    'Event': 'Endpoint',
+    'W3CIISLog': 'Web',
+    'AppServiceHTTPLogs': 'Web',
+    'AWSCloudTrail': 'Cloud',
+    'GCPAuditLogs': 'Cloud'
+  };
+  
+  // ADX table name patterns to log type mapping
+  const tableToLogType = {
+    'SecurityEvent': 'windows-event',
+    'Syslog': 'syslog',
+    'WindowsEvent': 'windows-event',
+    'CommonSecurityLog': 'cef',
+    'W3CIISLog': 'iis',
+    'Event': 'windows-event'
+  };
+  
+  // Try to find matching category by exact match or pattern
+  let category = 'Application';
+  let logType = 'json';
+  
+  // Exact match
+  if (tableToCategory[tableName]) {
+    category = tableToCategory[tableName];
+  } else {
+    // Pattern matching for common prefixes/suffixes
+    for (const [pattern, cat] of Object.entries(tableToCategory)) {
+      if (tableName.toLowerCase().includes(pattern.toLowerCase())) {
+        category = cat;
+        break;
+      }
+    }
+  }
+  
+  // Log type matching
+  if (tableToLogType[tableName]) {
+    logType = tableToLogType[tableName];
+  }
+  
+  // Get table schema if available
+  let tableSchema = [];
+  let schemaDescription = '';
+  if (schema && schema.Databases) {
+    const db = Object.values(schema.Databases)[0];
+    if (db && db.Tables && db.Tables[tableName]) {
+      const tableInfo = db.Tables[tableName];
+      tableSchema = tableInfo.OrderedColumns || [];
+      schemaDescription = tableSchema.slice(0, 10).map(c => `${c.Name} (${c.Type})`).join(', ');
+      if (tableSchema.length > 10) {
+        schemaDescription += `, ... +${tableSchema.length - 10} more columns`;
+      }
+    }
+  }
+  
+  // Get ingestion mappings for this table
+  const tableMappings = mappings.filter(m => m.Table === tableName || m.EntityName === tableName);
+  const mappingNames = tableMappings.map(m => m.Name || m.MappingName).filter(Boolean);
+  
+  // Build description with schema info
+  let description = `ADX table from ${integration.database} database`;
+  if (schemaDescription) {
+    description += `. Schema: ${schemaDescription}`;
+  }
+  if (mappingNames.length > 0) {
+    description += `. Mappings: ${mappingNames.join(', ')}`;
+  }
+  
+  // Determine status based on table size/activity
+  const rowCount = table.TotalRowCount || table.RowCount || 0;
+  const status = rowCount > 0 ? 'collected' : 'not-collected';
+  
+  return {
+    name: tableName,
+    description: description,
+    category: category,
+    logType: logType,
+    status: status,
+    adxTableName: tableName,
+    adxDatabase: integration.database,
+    adxCluster: integration.clusterUrl,
+    adxSchema: tableSchema,
+    adxMappings: mappingNames,
+    adxRowCount: rowCount,
+    integrationId: integration.id,
+    ownerTeam: '',
+    ownerContact: '',
+    criticalityTier: rowCount > 1000000 ? 'tier-1' : rowCount > 100000 ? 'tier-2' : 'tier-3',
+    retention: table.CachingPolicy?.DataHotSpan || '90d',
+    notes: `Auto-imported from Azure Data Explorer "${integration.name}". Database: ${integration.database}, Cluster: ${integration.clusterUrl}`,
+    tags: ['adx-import', integration.database, category.toLowerCase()]
   };
 }
 
