@@ -2886,144 +2886,123 @@ export const getRecommendedComponents = (technique, sources) => {
 };
 
 // ============================================
-// SOURCE HEALTH VALIDATION
+// INTEGRATIONS
 // ============================================
 
-// Health check types for source validation
-export const healthCheckTypes = [
+// Supported integration types
+export const integrationTypes = [
   {
-    id: 'delay-threshold',
-    name: 'Ingestion Delay',
-    description: 'Validates logs arrive within expected latency threshold',
-    category: 'Timeliness',
-    icon: 'Clock',
-    configFields: ['maxDelayMinutes'],
-    resultFields: ['avgDelayMinutes', 'maxDelayMinutes', 'lastEventTime'],
+    id: 'cribl',
+    name: 'Cribl Stream',
+    description: 'Connect to Cribl Stream to auto-discover log sources from your data pipeline',
+    icon: 'Layers',
+    color: 'purple',
+    configFields: [
+      { id: 'baseUrl', label: 'Cribl URL', type: 'url', placeholder: 'https://your-cribl-instance.cribl.cloud', required: true },
+      { id: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Enter your Cribl API token', required: true },
+      { id: 'workerGroup', label: 'Worker Group', type: 'text', placeholder: 'default (leave empty for leader)', required: false },
+    ],
+    docUrl: 'https://docs.cribl.io/stream/api-reference/',
   },
   {
-    id: 'schema-compliance',
-    name: 'Schema Compliance',
-    description: 'Validates logs match expected field schema',
-    category: 'Quality',
-    icon: 'FileCode',
-    configFields: ['requiredFields', 'fieldTypes'],
-    resultFields: ['presentFields', 'missingFields', 'sampleChecked'],
+    id: 'splunk',
+    name: 'Splunk',
+    description: 'Connect to Splunk to discover data inputs and sourcetypes',
+    icon: 'Search',
+    color: 'green',
+    configFields: [
+      { id: 'baseUrl', label: 'Splunk URL', type: 'url', placeholder: 'https://your-splunk:8089', required: true },
+      { id: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Enter your Splunk token', required: true },
+    ],
+    docUrl: 'https://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTprolog',
+    comingSoon: true,
   },
   {
-    id: 'field-population',
-    name: 'Field Population',
-    description: 'Validates required fields are not empty or incorrectly parsed',
-    category: 'Quality',
-    icon: 'CheckSquare',
-    configFields: ['requiredFields', 'nullThreshold'],
-    resultFields: ['sparseFields', 'parseErrors'],
-  },
-  {
-    id: 'retention-lookback',
-    name: 'Retention Lookback',
-    description: 'Validates logs exist back to expected retention date',
-    category: 'Retention',
-    icon: 'Calendar',
-    configFields: ['retentionDays', 'lookbackQuery'],
-    resultFields: ['foundDays', 'earliestEvent', 'queryUsed'],
-  },
-  {
-    id: 'detection-alignment',
-    name: 'Detection Alignment',
-    description: 'Validates alerts fire correctly for linked detections',
-    category: 'Coverage',
-    icon: 'Bell',
-    configFields: ['linkedDetections'],
-    resultFields: ['validatedDetections', 'failedDetections'],
-  },
-  {
-    id: 'storage-tier',
-    name: 'Storage Tier',
-    description: 'Validates logs are in the correct storage tier',
-    category: 'Compliance',
+    id: 'elastic',
+    name: 'Elastic',
+    description: 'Connect to Elasticsearch to discover indices and data streams',
     icon: 'Database',
-    configFields: ['expectedTier'],
-    resultFields: ['actualTier', 'tierTransitions'],
+    color: 'yellow',
+    configFields: [
+      { id: 'baseUrl', label: 'Elasticsearch URL', type: 'url', placeholder: 'https://your-elasticsearch:9200', required: true },
+      { id: 'apiToken', label: 'API Key', type: 'password', placeholder: 'Enter your Elastic API key', required: true },
+    ],
+    docUrl: 'https://www.elastic.co/guide/en/elasticsearch/reference/current/rest-apis.html',
+    comingSoon: true,
+  },
+  {
+    id: 'sentinel',
+    name: 'Microsoft Sentinel',
+    description: 'Connect to Microsoft Sentinel to discover data connectors',
+    icon: 'Shield',
+    color: 'blue',
+    configFields: [
+      { id: 'tenantId', label: 'Tenant ID', type: 'text', placeholder: 'Your Azure tenant ID', required: true },
+      { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'App registration client ID', required: true },
+      { id: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'App registration secret', required: true },
+      { id: 'workspaceId', label: 'Workspace ID', type: 'text', placeholder: 'Log Analytics workspace ID', required: true },
+    ],
+    docUrl: 'https://learn.microsoft.com/en-us/rest/api/securityinsights/',
+    comingSoon: true,
   },
 ];
 
-// Storage tier options
-export const storageTierOptions = [
-  { value: 'hot', label: 'Hot', description: 'Immediate query access, highest cost', color: 'red' },
-  { value: 'warm', label: 'Warm', description: 'Fast query access, moderate cost', color: 'orange' },
-  { value: 'cold', label: 'Cold', description: 'Slower query access, lower cost', color: 'blue' },
-  { value: 'archive', label: 'Archive', description: 'Requires restore before query, lowest cost', color: 'gray' },
-  { value: 'frozen', label: 'Frozen', description: 'Long-term archive, restore required', color: 'purple' },
+// Cribl source type to Logwise category mapping
+export const criblTypeToCategory = {
+  'syslog': 'Network',
+  'tcp': 'Network',
+  'udp': 'Network',
+  'http': 'Web',
+  'splunk_hec': 'Application',
+  'elastic': 'Application',
+  's3': 'Cloud',
+  'sqs': 'Cloud',
+  'kafka': 'Application',
+  'kinesis': 'Cloud',
+  'azure_blob': 'Cloud',
+  'azure_event_hub': 'Cloud',
+  'gcp_pubsub': 'Cloud',
+  'office365': 'Cloud',
+  'windows_event': 'Endpoint',
+  'file': 'Application',
+  'exec': 'Endpoint',
+  'snmp': 'Network',
+  'datagen': 'Application',
+};
+
+// Cribl source type to Logwise log type mapping
+export const criblTypeToLogType = {
+  'syslog': 'syslog',
+  'tcp': 'syslog',
+  'udp': 'syslog',
+  'http': 'json',
+  'splunk_hec': 'json',
+  'elastic': 'json',
+  's3': 'json',
+  'sqs': 'json',
+  'kafka': 'json',
+  'kinesis': 'json',
+  'azure_blob': 'json',
+  'azure_event_hub': 'json',
+  'gcp_pubsub': 'json',
+  'office365': 'json',
+  'windows_event': 'windows-event',
+  'file': 'file',
+  'exec': 'other',
+  'snmp': 'other',
+};
+
+// Import mode options
+export const importModeOptions = [
+  { value: 'new-only', label: 'Import new only', description: 'Only import sources that don\'t exist in inventory' },
+  { value: 'update', label: 'Import & update', description: 'Import new sources and update existing ones' },
+  { value: 'preview', label: 'Preview only', description: 'Show what would be imported without making changes' },
 ];
 
-// Common field types for schema validation
-export const fieldTypeOptions = [
-  { value: 'string', label: 'String' },
-  { value: 'integer', label: 'Integer' },
-  { value: 'float', label: 'Float' },
-  { value: 'boolean', label: 'Boolean' },
-  { value: 'datetime', label: 'DateTime' },
-  { value: 'ip', label: 'IP Address' },
-  { value: 'mac', label: 'MAC Address' },
-  { value: 'url', label: 'URL' },
-  { value: 'email', label: 'Email' },
-  { value: 'json', label: 'JSON Object' },
-  { value: 'array', label: 'Array' },
+// Integration status options
+export const integrationStatusOptions = [
+  { value: 'configured', label: 'Configured', color: 'gray', description: 'Integration configured but not synced' },
+  { value: 'synced', label: 'Synced', color: 'green', description: 'Successfully synced' },
+  { value: 'error', label: 'Error', color: 'red', description: 'Last sync failed' },
+  { value: 'syncing', label: 'Syncing', color: 'blue', description: 'Sync in progress' },
 ];
-
-// Default validation config template
-export const defaultValidationConfig = {
-  maxDelayMinutes: 5,
-  requiredFields: [],
-  fieldTypes: {},
-  nullThreshold: 10,
-  retentionDays: 90,
-  lookbackQuery: '',
-  linkedDetections: [],
-  expectedTier: 'hot',
-  tierTransitions: {
-    warm: 30,
-    cold: 90,
-    archive: 365,
-  },
-};
-
-// Health check status options
-export const healthCheckStatusOptions = [
-  { value: 'pass', label: 'Pass', color: 'green', icon: 'CheckCircle' },
-  { value: 'warn', label: 'Warning', color: 'yellow', icon: 'AlertTriangle' },
-  { value: 'fail', label: 'Fail', color: 'red', icon: 'XCircle' },
-  { value: 'skip', label: 'Skipped', color: 'gray', icon: 'MinusCircle' },
-];
-
-// Common log fields by category for auto-suggestions
-export const commonFieldsByCategory = {
-  'Network': ['timestamp', 'src_ip', 'dst_ip', 'src_port', 'dst_port', 'protocol', 'action', 'bytes_sent', 'bytes_received', 'rule_id', 'session_id'],
-  'Endpoint': ['timestamp', 'hostname', 'username', 'process_name', 'process_id', 'parent_process', 'command_line', 'file_path', 'registry_key', 'event_id'],
-  'Identity': ['timestamp', 'username', 'src_ip', 'auth_type', 'result', 'target_resource', 'session_id', 'mfa_used', 'location'],
-  'Cloud': ['timestamp', 'user_identity', 'event_name', 'event_source', 'aws_region', 'resource_type', 'resource_id', 'request_parameters', 'response_elements'],
-  'Email': ['timestamp', 'sender', 'recipient', 'subject', 'message_id', 'attachment_count', 'spam_score', 'direction', 'delivery_status'],
-  'Web': ['timestamp', 'client_ip', 'method', 'uri', 'status_code', 'response_size', 'user_agent', 'referrer', 'response_time'],
-  'Database': ['timestamp', 'username', 'database', 'query_type', 'query_text', 'affected_rows', 'execution_time', 'client_ip'],
-  'Application': ['timestamp', 'app_name', 'level', 'message', 'user_id', 'session_id', 'transaction_id', 'stack_trace'],
-};
-
-// Helper to get suggested fields for a source category
-export const getSuggestedFields = (category) => {
-  return commonFieldsByCategory[category] || commonFieldsByCategory['Application'] || [];
-};
-
-// Helper to parse retention value to days
-export const parseRetentionToDays = (retention) => {
-  if (!retention) return 0;
-  const match = retention.match(/^(\d+)([dDmMyY]?)$/);
-  if (!match) return 0;
-  const value = parseInt(match[1], 10);
-  const unit = match[2]?.toLowerCase() || 'd';
-  switch (unit) {
-    case 'd': return value;
-    case 'm': return value * 30;
-    case 'y': return value * 365;
-    default: return value;
-  }
-};

@@ -183,47 +183,48 @@ export const targetsAPI = {
   }),
 };
 
-// ============ SOURCE HEALTH VALIDATION ============
+// ============ INTEGRATIONS ============
 
-export const sourceHealthAPI = {
-  // Get latest health status for all sources
-  getAll: () => fetchAPI('/source-health'),
+export const integrationsAPI = {
+  // Get all integrations
+  getAll: () => fetchAPI('/integrations'),
   
-  // Get health history for a specific source
-  getHistory: (sourceId) => fetchAPI(`/source-health/${sourceId}`),
+  // Get single integration
+  getById: (id) => fetchAPI(`/integrations/${id}`),
   
-  // Get latest health for a specific source
-  getLatest: (sourceId) => fetchAPI(`/source-health/${sourceId}/latest`),
-  
-  // Save a health check result
-  save: (sourceId, checks) => fetchAPI(`/source-health/${sourceId}`, {
+  // Create integration
+  create: (integration) => fetchAPI('/integrations', {
     method: 'POST',
-    body: JSON.stringify({ checks }),
+    body: JSON.stringify(integration),
   }),
   
-  // Delete health history for a source
-  delete: (sourceId) => fetchAPI(`/source-health/${sourceId}`, {
+  // Update integration
+  update: (id, integration) => fetchAPI(`/integrations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(integration),
+  }),
+  
+  // Delete integration
+  delete: (id) => fetchAPI(`/integrations/${id}`, {
     method: 'DELETE',
   }),
-};
-
-// ============ SOURCE VALIDATION CONFIGS ============
-
-export const sourceValidationConfigsAPI = {
-  // Get all validation configs
-  getAll: () => fetchAPI('/source-validation-configs'),
   
-  // Get validation config for a specific source
-  getBySourceId: (sourceId) => fetchAPI(`/source-validation-configs/${sourceId}`),
-  
-  // Save validation config for a source
-  save: (sourceId, config) => fetchAPI(`/source-validation-configs/${sourceId}`, {
+  // Test integration connection
+  test: (id) => fetchAPI(`/integrations/${id}/test`, {
     method: 'POST',
-    body: JSON.stringify(config),
   }),
   
-  // Delete validation config for a source
-  delete: (sourceId) => fetchAPI(`/source-validation-configs/${sourceId}`, {
-    method: 'DELETE',
+  // Get sync history
+  getHistory: (id) => fetchAPI(`/integrations/${id}/history`),
+  
+  // Preview sources (without importing)
+  preview: (id) => fetchAPI(`/integrations/${id}/preview`, {
+    method: 'POST',
+  }),
+  
+  // Sync sources from integration
+  sync: (id, options) => fetchAPI(`/integrations/${id}/sync`, {
+    method: 'POST',
+    body: JSON.stringify(options),
   }),
 };

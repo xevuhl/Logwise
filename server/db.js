@@ -446,106 +446,109 @@ export const targets = {
   }
 };
 
-// ============ SOURCE HEALTH VALIDATIONS ============
+// ============ INTEGRATIONS ============
 
-export const sourceHealth = {
+export const integrations = {
   getAll() {
-    return readData('source-health.json');
+    return readData('integrations.json');
   },
   
-  getBySourceId(sourceId) {
+  getById(id) {
     const all = this.getAll();
-    return all.filter(h => h.sourceId === sourceId).sort((a, b) => 
-      new Date(b.runAt) - new Date(a.runAt)
-    );
+    return all.find(i => i.id === id);
   },
   
-  getLatestBySourceId(sourceId) {
-    const history = this.getBySourceId(sourceId);
-    return history.length > 0 ? history[0] : null;
-  },
-  
-  getAllLatest() {
+  getByType(type) {
     const all = this.getAll();
-    // Group by sourceId and get latest for each
-    const bySource = {};
-    all.forEach(record => {
-      if (!bySource[record.sourceId] || 
-          new Date(record.runAt) > new Date(bySource[record.sourceId].runAt)) {
-        bySource[record.sourceId] = record;
-      }
-    });
-    return Object.values(bySource);
+    return all.filter(i => i.type === type);
   },
   
-  save(sourceId, checkResults) {
+  create(integration) {
     const all = this.getAll();
-    
-    // Calculate overall status from check results
-    const statuses = checkResults.map(c => c.status);
-    let overallStatus = 'pass';
-    if (statuses.includes('fail')) overallStatus = 'fail';
-    else if (statuses.includes('warn')) overallStatus = 'warn';
-    
-    const record = {
+    const newIntegration = {
       id: generateId(),
-      sourceId,
-      runAt: new Date().toISOString(),
-      checks: checkResults,
-      overallStatus,
+      ...integration,
+      status: 'configured',
+      lastSync: null,
+      syncCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-    
-    all.push(record);
-    writeData('source-health.json', all);
-    return record;
+    all.push(newIntegration);
+    writeData('integrations.json', all);
+    return newIntegration;
   },
   
-  deleteBySourceId(sourceId) {
+  update(id, updates) {
+    const all = this.getAll();
+    const index = all.findIndex(i => i.id === id);
+    if (index === -1) return null;
+    
+    all[index] = {
+      ...all[index],
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('integrations.json', all);
+    return all[index];
+  },
+  
+  delete(id) {
     let all = this.getAll();
-    all = all.filter(h => h.sourceId !== sourceId);
-    writeData('source-health.json', all);
+    all = all.filter(i => i.id !== id);
+    writeData('integrations.json', all);
     return true;
+  },
+  
+  updateSyncStatus(id, status, syncedCount = 0) {
+    const all = this.getAll();
+    const index = all.findIndex(i => i.id === id);
+    if (index === -1) return null;
+    
+    all[index] = {
+      ...all[index],
+      status,
+      lastSync: new Date().toISOString(),
+      syncCount: all[index].syncCount + syncedCount,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('integrations.json', all);
+    return all[index];
   }
 };
 
-// ============ SOURCE VALIDATION CONFIGS ============
+// ============ INTEGRATION SYNC HISTORY ============
 
-export const sourceValidationConfigs = {
+export const integrationSyncHistory = {
   getAll() {
-    return readData('source-validation-configs.json');
+    return readData('integration-sync-history.json');
   },
   
-  getBySourceId(sourceId) {
+  getByIntegrationId(integrationId) {
     const all = this.getAll();
-    return all.find(c => c.sourceId === sourceId);
+    return all.filter(h => h.integrationId === integrationId).sort((a, b) => 
+      new Date(b.syncedAt) - new Date(a.syncedAt)
+    );
   },
   
-  save(sourceId, config) {
+  add(integrationId, result) {
     const all = this.getAll();
-    const index = all.findIndex(c => c.sourceId === sourceId);
-    
     const record = {
-      sourceId,
-      ...config,
-      updatedAt: new Date().toISOString()
+      id: generateId(),
+      integrationId,
+      ...result,
+      syncedAt: new Date().toISOString()
     };
-    
-    if (index === -1) {
-      record.id = generateId();
-      record.createdAt = new Date().toISOString();
-      all.push(record);
-    } else {
-      all[index] = { ...all[index], ...record };
-    }
-    
-    writeData('source-validation-configs.json', all);
+    all.push(record);
+    writeData('integration-sync-history.json', all);
     return record;
   },
   
-  delete(sourceId) {
+  deleteByIntegrationId(integrationId) {
     let all = this.getAll();
-    all = all.filter(c => c.sourceId !== sourceId);
-    writeData('source-validation-configs.json', all);
+    all = all.filter(h => h.integrationId !== integrationId);
+    writeData('integration-sync-history.json', all);
     return true;
   }
 };

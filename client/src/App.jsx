@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, sourceHealthAPI, sourceValidationConfigsAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, integrationsAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -11,7 +11,7 @@ import Reports from './components/Reports';
 import Onboarding from './components/Onboarding';
 import Relationships from './components/Relationships';
 import Targets from './components/Targets';
-import SourceHealth from './components/SourceHealth';
+import Integrations from './components/Integrations';
 import { assessmentQuestions } from './constants';
 
 function App() {
@@ -33,8 +33,7 @@ function App() {
   const [campaigns, setCampaigns] = useState([]);
   const [relationships, setRelationships] = useState([]);
   const [targets, setTargets] = useState([]);
-  const [healthRecords, setHealthRecords] = useState([]);
-  const [validationConfigs, setValidationConfigs] = useState([]);
+  const [integrations, setIntegrations] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,15 +54,14 @@ function App() {
     async function loadData() {
       try {
         setLoading(true);
-        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, targetsData, healthData, configsData, auditData, viewsData] = await Promise.all([
+        const [sourcesData, assessmentsData, validationData, campaignsData, relationshipsData, targetsData, integrationsData, auditData, viewsData] = await Promise.all([
           sourcesAPI.getAll(),
           assessmentsAPI.getAll(),
           validationAPI.getAll(),
           campaignsAPI.getAll(),
           relationshipsAPI.getAll(),
           targetsAPI.getAll(),
-          sourceHealthAPI.getAll(),
-          sourceValidationConfigsAPI.getAll(),
+          integrationsAPI.getAll(),
           auditAPI.getAll(),
           viewsAPI.getAll(),
         ]);
@@ -80,8 +78,7 @@ function App() {
         setCampaigns(campaignsData);
         setRelationships(relationshipsData);
         setTargets(targetsData);
-        setHealthRecords(healthData);
-        setValidationConfigs(configsData);
+        setIntegrations(integrationsData);
         setAuditLog(auditData);
         setSavedViews(viewsData);
         setError(null);
@@ -111,7 +108,7 @@ function App() {
       if (e.key === '4') setActiveTab('relationships');
       if (e.key === '5') setActiveTab('assessment');
       if (e.key === '6') setActiveTab('validation');
-      if (e.key === '7') setActiveTab('source-health');
+      if (e.key === '7') setActiveTab('integrations');
       if (e.key === '8') setActiveTab('reports');
       if (e.key === '9') setActiveTab('audit');
       if (e.key === 'd') setDarkMode(prev => !prev);
@@ -332,51 +329,53 @@ function App() {
     }
   }, []);
 
-  // Source health operations
-  const handleSaveHealthCheck = useCallback(async (sourceId, checks) => {
+  // Integration operations
+  const handleCreateIntegration = useCallback(async (integration) => {
     try {
-      const saved = await sourceHealthAPI.save(sourceId, checks);
-      setHealthRecords(prev => {
-        // Remove old record for this source and add new one
-        const filtered = prev.filter(r => r.sourceId !== sourceId);
-        return [...filtered, saved];
-      });
+      const newIntegration = await integrationsAPI.create(integration);
+      setIntegrations(prev => [...prev, newIntegration]);
       const auditData = await auditAPI.getAll();
       setAuditLog(auditData);
-      return saved;
+      return newIntegration;
     } catch (err) {
-      console.error('Failed to save health check:', err);
+      console.error('Failed to create integration:', err);
       throw err;
     }
   }, []);
 
-  const handleSaveValidationConfig = useCallback(async (sourceId, config) => {
+  const handleUpdateIntegration = useCallback(async (id, updates) => {
     try {
-      const saved = await sourceValidationConfigsAPI.save(sourceId, config);
-      setValidationConfigs(prev => {
-        const existing = prev.findIndex(c => c.sourceId === sourceId);
-        if (existing >= 0) {
-          const updated = [...prev];
-          updated[existing] = saved;
-          return updated;
-        }
-        return [...prev, saved];
-      });
+      const updated = await integrationsAPI.update(id, updates);
+      setIntegrations(prev => prev.map(i => i.id === id ? updated : i));
       const auditData = await auditAPI.getAll();
       setAuditLog(auditData);
-      return saved;
+      return updated;
     } catch (err) {
-      console.error('Failed to save validation config:', err);
+      console.error('Failed to update integration:', err);
       throw err;
     }
   }, []);
 
-  const handleRefreshHealth = useCallback(async () => {
+  const handleDeleteIntegration = useCallback(async (id) => {
     try {
-      const healthData = await sourceHealthAPI.getAll();
-      setHealthRecords(healthData);
+      await integrationsAPI.delete(id);
+      setIntegrations(prev => prev.filter(i => i.id !== id));
+      const auditData = await auditAPI.getAll();
+      setAuditLog(auditData);
     } catch (err) {
-      console.error('Failed to refresh health data:', err);
+      console.error('Failed to delete integration:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleRefreshSources = useCallback(async () => {
+    try {
+      const sourcesData = await sourcesAPI.getAll();
+      setSources(sourcesData);
+      const integrationsData = await integrationsAPI.getAll();
+      setIntegrations(integrationsData);
+    } catch (err) {
+      console.error('Failed to refresh sources:', err);
       throw err;
     }
   }, []);
@@ -550,14 +549,14 @@ function App() {
             />
           )}
           
-          {activeTab === 'source-health' && (
-            <SourceHealth
+          {activeTab === 'integrations' && (
+            <Integrations
+              integrations={integrations}
               sources={sources}
-              healthRecords={healthRecords}
-              validationConfigs={validationConfigs}
-              onSaveHealthCheck={handleSaveHealthCheck}
-              onSaveConfig={handleSaveValidationConfig}
-              onRefreshHealth={handleRefreshHealth}
+              onCreate={handleCreateIntegration}
+              onUpdate={handleUpdateIntegration}
+              onDelete={handleDeleteIntegration}
+              onRefreshSources={handleRefreshSources}
             />
           )}
           
