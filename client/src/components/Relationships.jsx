@@ -67,12 +67,13 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
   // Filter relationships
   const filteredRelationships = useMemo(() => {
     return relationships.filter(rel => {
-      const source = sourcesMap[rel.sourceId];
-      const target = rel.targetType === 'target' ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
+      // Handle both source types (log source or target as source for chained flows)
+      const sourceEntity = rel.sourceType === 'target' ? targetsMap[rel.sourceId] : sourcesMap[rel.sourceId];
+      const targetEntity = rel.targetType === 'target' ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
       
       const matchesSearch = !search || 
-        source?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        target?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        sourceEntity?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        targetEntity?.name?.toLowerCase().includes(search.toLowerCase()) ||
         rel.description?.toLowerCase().includes(search.toLowerCase());
       
       const matchesType = typeFilter === 'all' || rel.type === typeFilter;
@@ -81,12 +82,14 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
     });
   }, [relationships, sourcesMap, targetsMap, search, typeFilter]);
 
-  // Group relationships by source
+  // Group relationships by source (only log sources, not target-to-target)
   const relationshipsBySource = useMemo(() => {
     const grouped = {};
     sources.forEach(source => {
-      const outgoing = relationships.filter(r => r.sourceId === source.id);
-      const incoming = relationships.filter(r => r.targetId === source.id && r.targetType !== 'target');
+      // Outgoing: relationships where this source is the origin (and sourceType is 'source' or undefined)
+      const outgoing = relationships.filter(r => r.sourceId === source.id && (!r.sourceType || r.sourceType === 'source'));
+      // Incoming: relationships where this source is the destination (targetType must be 'source' or undefined)
+      const incoming = relationships.filter(r => r.targetId === source.id && (!r.targetType || r.targetType === 'source'));
       if (outgoing.length > 0 || incoming.length > 0) {
         grouped[source.id] = {
           source,
@@ -98,18 +101,21 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
     return grouped;
   }, [sources, relationships]);
 
-  // Group relationships by target (ingestion destinations)
+  // Group relationships by target (ingestion destinations) - includes both incoming and outgoing for chained flows
   const relationshipsByTarget = useMemo(() => {
     const grouped = {};
-    // Only include relationships that go to targets
-    const targetRelationships = relationships.filter(r => r.targetType === 'target');
     
     (targets || []).forEach(target => {
-      const incoming = targetRelationships.filter(r => r.targetId === target.id);
-      if (incoming.length > 0) {
+      // Incoming: relationships where this target is the destination
+      const incoming = relationships.filter(r => r.targetId === target.id && r.targetType === 'target');
+      // Outgoing: relationships where this target is the source (for chained flows like Cribl → ADX)
+      const outgoing = relationships.filter(r => r.sourceId === target.id && r.sourceType === 'target');
+      
+      if (incoming.length > 0 || outgoing.length > 0) {
         grouped[target.id] = {
           target,
-          incoming
+          incoming,
+          outgoing
         };
       }
     });
@@ -314,13 +320,17 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredRelationships.map(rel => {
-                const source = sourcesMap[rel.sourceId];
+                // Handle both source types (log source or target as source for chained flows)
+                const isTargetSource = rel.sourceType === 'target';
+                const sourceEntity = isTargetSource ? targetsMap[rel.sourceId] : sourcesMap[rel.sourceId];
                 const isTargetDestination = rel.targetType === 'target';
                 const destination = isTargetDestination ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
                 const TypeIcon = getTypeIcon(rel.type);
                 const typeColor = getTypeColor(rel.type);
                 const relType = relationshipTypes.find(t => t.value === rel.type);
+                const sourceStatusColor = isTargetSource ? getTargetStatusColor(sourceEntity?.status) : getStatusColor(sourceEntity?.status);
                 const destStatusColor = isTargetDestination ? getTargetStatusColor(destination?.status) : getStatusColor(destination?.status);
+                const sourceTypeInfo = isTargetSource ? targetTypes.find(t => t.value === sourceEntity?.type) : null;
                 const targetTypeInfo = isTargetDestination ? targetTypes.find(t => t.value === destination?.type) : null;
                 
                 return (
@@ -329,16 +339,26 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
                     className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      {/* Source */}
+                      {/* Source (can be Log Source or Target for chained flows) */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <Database className="h-3.5 w-3.5 text-gray-400" />
-                          <div className={`w-2 h-2 rounded-full bg-${getStatusColor(source?.status)}-500`} />
+                          {isTargetSource ? (
+                            <Target className="h-3.5 w-3.5 text-purple-500" />
+                          ) : (
+                            <Database className="h-3.5 w-3.5 text-gray-400" />
+                          )}
+                          <div className={`w-2 h-2 rounded-full bg-${sourceStatusColor}-500`} />
                           <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {source?.name || 'Unknown Source'}
+                            {sourceEntity?.name || 'Unknown Source'}
                           </span>
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 ml-5">{source?.category}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 ml-5">
+                          {isTargetSource ? (
+                            <span className="text-purple-500">{sourceTypeInfo?.label || sourceEntity?.type}</span>
+                          ) : (
+                            sourceEntity?.category
+                          )}
+                        </div>
                       </div>
 
                       {/* Relationship Type */}
@@ -655,6 +675,7 @@ function TargetsGraphView({
         const target = data.target;
         const targetTypeInfo = targetTypes.find(t => t.value === target.type);
         const incomingCount = data.incoming.length;
+        const outgoingCount = data.outgoing?.length || 0;
         
         // Group incoming by relationship type for summary
         const typeGroups = {};
@@ -683,7 +704,7 @@ function TargetsGraphView({
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {incomingCount} {incomingCount === 1 ? 'feed' : 'feeds'}
+                  {incomingCount} in{outgoingCount > 0 ? ` • ${outgoingCount} out` : ''}
                 </span>
                 <div className="flex items-center gap-1">
                   {Object.entries(typeGroups).slice(0, 3).map(([type, rels]) => {
@@ -705,49 +726,115 @@ function TargetsGraphView({
             
             {isExpanded && (
               <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                  Incoming Sources ({incomingCount})
-                </div>
-                <div className="space-y-2">
-                  {data.incoming.map(rel => {
-                    const source = sourcesMap[rel.sourceId];
-                    const TypeIcon = getTypeIcon(rel.type);
-                    const typeColor = getTypeColor(rel.type);
-                    const relType = relationshipTypes.find(t => t.value === rel.type);
-                    
-                    return (
-                      <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-                        <Database className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                        <div className={`w-2 h-2 rounded-full bg-${getStatusColor(source?.status)}-500 flex-shrink-0`} />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm text-gray-900 dark:text-white">{source?.name || 'Unknown'}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({source?.category})</span>
-                          {rel.description && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
-                          )}
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
-                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
-                          <TypeIcon className="h-3 w-3" />
-                          {relType?.label}
-                        </div>
-                        {rel.dataFlow && (
-                          <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                            {rel.dataFlow}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
-                            <Edit2 className="h-3 w-3" />
-                          </button>
-                          <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {/* Incoming sources */}
+                {incomingCount > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                      Incoming Sources ({incomingCount})
+                    </div>
+                    <div className="space-y-2">
+                      {data.incoming.map(rel => {
+                        // Handle both source types (log source or target as source for chained flows)
+                        const isSourceTarget = rel.sourceType === 'target';
+                        const sourceEntity = isSourceTarget ? targetsMap[rel.sourceId] : sourcesMap[rel.sourceId];
+                        const sourceTypeInfo = isSourceTarget ? targetTypes.find(t => t.value === sourceEntity?.type) : null;
+                        const sourceStatusColor = isSourceTarget ? getTargetStatusColor(sourceEntity?.status) : getStatusColor(sourceEntity?.status);
+                        const TypeIcon = getTypeIcon(rel.type);
+                        const typeColor = getTypeColor(rel.type);
+                        const relType = relationshipTypes.find(t => t.value === rel.type);
+                        
+                        return (
+                          <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
+                            {isSourceTarget ? (
+                              <Target className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                            ) : (
+                              <Database className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                            )}
+                            <div className={`w-2 h-2 rounded-full bg-${sourceStatusColor}-500 flex-shrink-0`} />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-gray-900 dark:text-white">{sourceEntity?.name || 'Unknown'}</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                                ({isSourceTarget ? (sourceTypeInfo?.label || sourceEntity?.type) : sourceEntity?.category})
+                              </span>
+                              {rel.description && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
+                              )}
+                            </div>
+                            <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
+                              <TypeIcon className="h-3 w-3" />
+                              {relType?.label}
+                            </div>
+                            {rel.dataFlow && (
+                              <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                {rel.dataFlow}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
+                                <Edit2 className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Outgoing to other targets (chained flow) */}
+                {outgoingCount > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wider mb-2">
+                      Forwards To ({outgoingCount})
+                    </div>
+                    <div className="space-y-2">
+                      {data.outgoing.map(rel => {
+                        const destTarget = targetsMap[rel.targetId];
+                        const destTypeInfo = targetTypes.find(t => t.value === destTarget?.type);
+                        const TypeIcon = getTypeIcon(rel.type);
+                        const typeColor = getTypeColor(rel.type);
+                        const relType = relationshipTypes.find(t => t.value === rel.type);
+                        
+                        return (
+                          <div key={rel.id} className="flex items-center gap-3 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                            <ArrowRightCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
+                              <TypeIcon className="h-3 w-3" />
+                              {relType?.label}
+                            </div>
+                            <ArrowRight className="h-3.5 w-3.5 text-green-400" />
+                            <Target className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                            <div className={`w-2 h-2 rounded-full bg-${getTargetStatusColor(destTarget?.status)}-500 flex-shrink-0`} />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-gray-900 dark:text-white">{destTarget?.name || 'Unknown'}</span>
+                              <span className="text-xs text-purple-500 ml-1">({destTypeInfo?.label || destTarget?.type})</span>
+                              {rel.description && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
+                              )}
+                            </div>
+                            {rel.dataFlow && (
+                              <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                {rel.dataFlow}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
+                                <Edit2 className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Summary stats for this target */}
                 <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
@@ -787,6 +874,7 @@ function TargetsGraphView({
 function RelationshipModal({ relationship, sources, targets, onClose, onSave }) {
   const [formData, setFormData] = useState(relationship || {
     sourceId: '',
+    sourceType: 'source', // 'source' or 'target' (for chained flows)
     targetId: '',
     targetType: 'source', // 'source' or 'target'
     type: 'feeds',
@@ -796,6 +884,21 @@ function RelationshipModal({ relationship, sources, targets, onClose, onSave }) 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Handle source selection (Log Source or intermediate Target)
+  const handleSourceChange = (value) => {
+    if (!value) {
+      setFormData({ ...formData, sourceId: '', sourceType: 'source' });
+      return;
+    }
+    const [type, id] = value.split(':');
+    setFormData({ ...formData, sourceId: id, sourceType: type });
+  };
+
+  const getSourceValue = () => {
+    if (!formData.sourceId) return '';
+    return `${formData.sourceType || 'source'}:${formData.sourceId}`;
+  };
 
   // Handle destination selection (combined source + target dropdown)
   const handleDestinationChange = (value) => {
@@ -820,7 +923,9 @@ function RelationshipModal({ relationship, sources, targets, onClose, onSave }) 
       return;
     }
     
-    if (formData.targetType === 'source' && formData.sourceId === formData.targetId) {
+    // Check if source and destination are the same entity
+    const sameType = (formData.sourceType || 'source') === formData.targetType;
+    if (sameType && formData.sourceId === formData.targetId) {
       setError('Source and destination cannot be the same');
       return;
     }
@@ -867,18 +972,35 @@ function RelationshipModal({ relationship, sources, targets, onClose, onSave }) 
                 </span>
               </label>
               <select
-                value={formData.sourceId}
-                onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
+                value={getSourceValue()}
+                onChange={(e) => handleSourceChange(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
                 <option value="">Select source...</option>
-                {sources.map(source => (
-                  <option key={source.id} value={source.id}>
-                    {source.name} ({source.category})
-                  </option>
-                ))}
+                {targets && targets.length > 0 && (
+                  <optgroup label="🎯 Targets (for chained flows)">
+                    {targets.filter(t => ['log-collector', 'log-aggregator', 'stream-processor'].includes(t.type)).map(target => {
+                      const targetTypeInfo = targetTypes.find(tt => tt.value === target.type);
+                      return (
+                        <option key={`target:${target.id}`} value={`target:${target.id}`}>
+                          {target.name} ({targetTypeInfo?.label || target.type})
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                )}
+                <optgroup label="📦 Log Sources">
+                  {sources.map(source => (
+                    <option key={`source:${source.id}`} value={`source:${source.id}`}>
+                      {source.name} ({source.category})
+                    </option>
+                  ))}
+                </optgroup>
               </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Log Source or intermediate Target (e.g., Cribl)
+              </p>
             </div>
             
             <div>
@@ -1015,7 +1137,11 @@ function RelationshipModal({ relationship, sources, targets, onClose, onSave }) 
 }
 
 function DeleteConfirmModal({ relationship, sourcesMap, targetsMap, onClose, onConfirm }) {
-  const source = sourcesMap[relationship.sourceId];
+  // Handle both source types (log source or target as source for chained flows)
+  const isTargetSource = relationship.sourceType === 'target';
+  const sourceEntity = isTargetSource 
+    ? targetsMap[relationship.sourceId]
+    : sourcesMap[relationship.sourceId];
   const isTargetDestination = relationship.targetType === 'target';
   const destination = isTargetDestination 
     ? targetsMap[relationship.targetId]
@@ -1039,8 +1165,12 @@ function DeleteConfirmModal({ relationship, sourcesMap, targetsMap, onClose, onC
           </p>
           
           <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded text-sm mb-4 flex items-center gap-2">
-            <Database className="h-4 w-4 text-blue-500" />
-            <span className="font-medium text-gray-900 dark:text-white">{source?.name || 'Unknown'}</span>
+            {isTargetSource ? (
+              <Target className="h-4 w-4 text-purple-500" />
+            ) : (
+              <Database className="h-4 w-4 text-blue-500" />
+            )}
+            <span className="font-medium text-gray-900 dark:text-white">{sourceEntity?.name || 'Unknown'}</span>
             <span className="mx-2 text-gray-400">→</span>
             {isTargetDestination ? (
               <Target className="h-4 w-4 text-purple-500" />
