@@ -160,7 +160,7 @@ function Integrations({ integrations, sources, onCreate, onUpdate, onDelete, onR
       <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Available Connectors</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {integrationTypes.filter(type => !type.comingSoon).map(type => {
+          {integrationTypes.map(type => {
             const IconComponent = getIconComponent(type.icon);
             const isConfigured = integrations.some(i => i.type === type.id);
             
@@ -188,38 +188,6 @@ function Integrations({ integrations, sources, onCreate, onUpdate, onDelete, onR
             );
           })}
         </div>
-        
-        {/* Coming Soon Connectors */}
-        {integrationTypes.some(type => type.comingSoon) && (
-          <>
-            <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-4 mb-2 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              Coming Soon
-            </h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {integrationTypes.filter(type => type.comingSoon).map(type => {
-                const IconComponent = getIconComponent(type.icon);
-                
-                return (
-                  <div
-                    key={type.id}
-                    className="p-3 rounded border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 opacity-60 cursor-not-allowed"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`p-1.5 rounded ${getColorClasses(type.color)}`}>
-                        <IconComponent className="h-4 w-4" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{type.name}</span>
-                    </div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">
-                      {type.description}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
       </div>
 
       {/* Configured Integrations */}

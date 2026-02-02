@@ -1,29 +1,22 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   GitMerge,
   Plus,
   Search,
-  Filter,
   ArrowRight,
-  Sparkles,
-  Zap,
-  Link,
-  Layers,
-  FileCode,
-  Copy,
   X,
   Edit2,
   Trash2,
   Save,
   AlertTriangle,
-  ChevronDown,
-  ChevronRight,
-  ArrowRightCircle,
   Network,
   Database,
   Target,
   Link2,
-  AlertCircle
+  AlertCircle,
+  ZoomIn,
+  ZoomOut,
+  Maximize2
 } from 'lucide-react';
 import { relationshipTypes, statusOptions, targetTypes, targetStatusOptions } from '../constants';
 
@@ -33,9 +26,6 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRelationship, setEditingRelationship] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [viewMode, setViewMode] = useState('graph'); // 'graph' (Sources) or 'targets'
-  const [expandedSource, setExpandedSource] = useState(null);
-  const [expandedTarget, setExpandedTarget] = useState(null);
 
   // Create a map of sources for quick lookup
   const sourcesMap = useMemo(() => {
@@ -50,19 +40,6 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
     (targets || []).forEach(t => { map[t.id] = { ...t, entityType: 'target' }; });
     return map;
   }, [targets]);
-
-  // Combined map for looking up any entity (source or target)
-  const entitiesMap = useMemo(() => {
-    return { ...sourcesMap, ...targetsMap };
-  }, [sourcesMap, targetsMap]);
-
-  // Helper to get entity by ID and type
-  const getEntity = (id, entityType) => {
-    if (entityType === 'target') {
-      return targetsMap[id];
-    }
-    return sourcesMap[id];
-  };
 
   // Filter relationships
   const filteredRelationships = useMemo(() => {
@@ -127,38 +104,9 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
     return relationships.filter(r => r.targetType === 'target').length;
   }, [relationships]);
 
-  // Get icon component for relationship type
-  const getTypeIcon = (type) => {
-    const icons = {
-      'feeds': ArrowRight,
-      'enriches': Sparkles,
-      'triggers': Zap,
-      'depends-on': Link,
-      'aggregates': Layers,
-      'normalizes': FileCode,
-      'correlates': GitMerge,
-      'mirrors': Copy,
-    };
-    return icons[type] || ArrowRight;
-  };
-
   const getTypeColor = (type) => {
     const relType = relationshipTypes.find(t => t.value === type);
     return relType?.color || 'gray';
-  };
-
-  const getColorClasses = (color) => {
-    const colors = {
-      blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700',
-      purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-700',
-      orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-700',
-      red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700',
-      green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700',
-      cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-700',
-      indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-700',
-      gray: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-600',
-    };
-    return colors[color] || colors.gray;
   };
 
   const getStatusColor = (status) => {
@@ -169,14 +117,6 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
   const getTargetStatusColor = (status) => {
     const opt = targetStatusOptions.find(s => s.value === status);
     return opt?.color || 'gray';
-  };
-
-  // Helper to get status color for any entity
-  const getEntityStatusColor = (entity, entityType) => {
-    if (entityType === 'target') {
-      return getTargetStatusColor(entity?.status);
-    }
-    return getStatusColor(entity?.status);
   };
 
   return (
@@ -194,30 +134,6 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
         </div>
         
         <div className="flex gap-2">
-          <div className="flex bg-gray-100 dark:bg-gray-700 rounded p-0.5">
-            <button
-              onClick={() => setViewMode('graph')}
-              className={`px-3 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
-                viewMode === 'graph' 
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              <Database className="h-3 w-3" />
-              Sources
-            </button>
-            <button
-              onClick={() => setViewMode('targets')}
-              className={`px-3 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
-                viewMode === 'targets' 
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              <Target className="h-3 w-3" />
-              Targets
-            </button>
-          </div>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs btn-gradient text-white rounded"
@@ -287,44 +203,20 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
         />
       </div>
 
-      {/* Content */}
-      {viewMode === 'graph' ? (
-        /* Sources Graph View */
-        <GraphView
-          sources={sources}
-          targets={targets}
-          relationships={relationships}
-          sourcesMap={sourcesMap}
-          targetsMap={targetsMap}
-          relationshipsBySource={relationshipsBySource}
-          getTypeIcon={getTypeIcon}
-          getTypeColor={getTypeColor}
-          getColorClasses={getColorClasses}
-          getStatusColor={getStatusColor}
-          getTargetStatusColor={getTargetStatusColor}
-          expandedSource={expandedSource}
-          setExpandedSource={setExpandedSource}
-          onEdit={setEditingRelationship}
-          onDelete={setDeleteConfirm}
-        />
-      ) : (
-        /* Targets Graph View */
-        <TargetsGraphView
-          targets={targets}
-          sourcesMap={sourcesMap}
-          targetsMap={targetsMap}
-          relationshipsByTarget={relationshipsByTarget}
-          getTypeIcon={getTypeIcon}
-          getTypeColor={getTypeColor}
-          getColorClasses={getColorClasses}
-          getStatusColor={getStatusColor}
-          getTargetStatusColor={getTargetStatusColor}
-          expandedTarget={expandedTarget}
-          setExpandedTarget={setExpandedTarget}
-          onEdit={setEditingRelationship}
-          onDelete={setDeleteConfirm}
-        />
-      )}
+      {/* Interactive Graph View */}
+      <InteractiveGraph
+        sources={sources}
+        targets={targets}
+        relationships={relationships}
+        sourcesMap={sourcesMap}
+        targetsMap={targetsMap}
+        getTypeColor={getTypeColor}
+        getStatusColor={getStatusColor}
+        getTargetStatusColor={getTargetStatusColor}
+        onEdit={setEditingRelationship}
+        onDelete={setDeleteConfirm}
+        onAddRelationship={() => setShowAddModal(true)}
+      />
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingRelationship) && (
@@ -365,376 +257,539 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
   );
 }
 
-function GraphView({ 
+// InteractiveGraph component - SVG-based network visualization
+function InteractiveGraph({
   sources,
-  targets, 
-  relationships, 
-  sourcesMap,
-  targetsMap, 
-  relationshipsBySource, 
-  getTypeIcon, 
-  getTypeColor, 
-  getColorClasses, 
-  getStatusColor,
-  getTargetStatusColor,
-  expandedSource,
-  setExpandedSource,
-  onEdit,
-  onDelete
-}) {
-  return (
-    <div className="space-y-2">
-      {Object.entries(relationshipsBySource).map(([sourceId, data]) => {
-        const isExpanded = expandedSource === sourceId;
-        
-        return (
-          <div 
-            key={sourceId}
-            className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <button
-              onClick={() => setExpandedSource(isExpanded ? null : sourceId)}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
-                <Database className="h-4 w-4 text-gray-400" />
-                <div className={`w-3 h-3 rounded-full bg-${getStatusColor(data.source.status)}-500`} />
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{data.source.name}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">({data.source.category})</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {data.outgoing.length} outgoing • {data.incoming.length} incoming
-                </span>
-              </div>
-            </button>
-            
-            {isExpanded && (
-              <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
-                {data.outgoing.length > 0 && (
-                  <div className="mb-4">
-                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                      Outgoing ({data.outgoing.length})
-                    </div>
-                    <div className="space-y-2">
-                      {data.outgoing.map(rel => {
-                        const isTargetDest = rel.targetType === 'target';
-                        const destination = isTargetDest ? targetsMap[rel.targetId] : sourcesMap[rel.targetId];
-                        const TypeIcon = getTypeIcon(rel.type);
-                        const typeColor = getTypeColor(rel.type);
-                        const relType = relationshipTypes.find(t => t.value === rel.type);
-                        const destStatusColor = isTargetDest ? getTargetStatusColor(destination?.status) : getStatusColor(destination?.status);
-                        const targetTypeInfo = isTargetDest ? targetTypes.find(t => t.value === destination?.type) : null;
-                        
-                        return (
-                          <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-                            <ArrowRightCircle className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
-                              <TypeIcon className="h-3 w-3" />
-                              {relType?.label}
-                            </div>
-                            <div className="flex-1 min-w-0 flex items-center gap-2">
-                              {isTargetDest ? (
-                                <Target className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
-                              ) : (
-                                <Database className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                              )}
-                              <div className={`w-2 h-2 rounded-full bg-${destStatusColor}-500 flex-shrink-0`} />
-                              <div className="min-w-0">
-                                <span className="text-sm text-gray-900 dark:text-white">{destination?.name || 'Unknown'}</span>
-                                {isTargetDest && targetTypeInfo && (
-                                  <span className="text-xs text-purple-500 ml-1">({targetTypeInfo.label})</span>
-                                )}
-                                {rel.description && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
-                                <Edit2 className="h-3 w-3" />
-                              </button>
-                              <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                
-                {data.incoming.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                      Incoming ({data.incoming.length})
-                    </div>
-                    <div className="space-y-2">
-                      {data.incoming.map(rel => {
-                        const source = sourcesMap[rel.sourceId];
-                        const TypeIcon = getTypeIcon(rel.type);
-                        const typeColor = getTypeColor(rel.type);
-                        const relType = relationshipTypes.find(t => t.value === rel.type);
-                        
-                        return (
-                          <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-                            <ArrowRightCircle className="h-4 w-4 text-gray-400 flex-shrink-0 rotate-180" />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-gray-900 dark:text-white">{source?.name || 'Unknown'}</span>
-                              {rel.description && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
-                              )}
-                            </div>
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
-                              <TypeIcon className="h-3 w-3" />
-                              {relType?.label}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
-                                <Edit2 className="h-3 w-3" />
-                              </button>
-                              <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
-      
-      {Object.keys(relationshipsBySource).length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <Network className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <div className="text-gray-400 dark:text-gray-500 text-sm">No relationships to display</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TargetsGraphView({
   targets,
+  relationships,
   sourcesMap,
   targetsMap,
-  relationshipsByTarget,
-  getTypeIcon,
   getTypeColor,
-  getColorClasses,
   getStatusColor,
   getTargetStatusColor,
-  expandedTarget,
-  setExpandedTarget,
   onEdit,
-  onDelete
+  onDelete,
+  onAddRelationship
 }) {
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+  const [dimensions, setDimensions] = useState({ width: 1000, height: 600 });
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const [hoveredEdge, setHoveredEdge] = useState(null);
+  const [selectedRelationship, setSelectedRelationship] = useState(null);
+
+  // Resize observer
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width: Math.max(width, 600), height: Math.max(height, 400) });
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Calculate node positions
+  const nodePositions = useMemo(() => {
+    const positions = {};
+    const padding = 60;
+    const nodeHeight = 45;
+    const leftX = padding + 100;
+    const rightX = dimensions.width - padding - 100;
+    
+    // Get sources and targets that have relationships
+    const connectedSourceIds = new Set();
+    const connectedTargetIds = new Set();
+    
+    relationships.forEach(rel => {
+      if (!rel.sourceType || rel.sourceType === 'source') {
+        connectedSourceIds.add(rel.sourceId);
+      }
+      if (rel.targetType === 'target') {
+        connectedTargetIds.add(rel.targetId);
+      }
+    });
+
+    // Position sources on the left
+    const sourcesToShow = sources.filter(s => connectedSourceIds.has(s.id));
+    const sourceSpacing = Math.min(nodeHeight + 20, (dimensions.height - 2 * padding) / Math.max(sourcesToShow.length, 1));
+    const sourceStartY = padding + (dimensions.height - 2 * padding - (sourcesToShow.length - 1) * sourceSpacing) / 2;
+    
+    sourcesToShow.forEach((source, i) => {
+      positions[`source-${source.id}`] = {
+        x: leftX,
+        y: sourceStartY + i * sourceSpacing,
+        type: 'source',
+        entity: source
+      };
+    });
+
+    // Position targets on the right
+    const targetsToShow = (targets || []).filter(t => connectedTargetIds.has(t.id));
+    const targetSpacing = Math.min(nodeHeight + 20, (dimensions.height - 2 * padding) / Math.max(targetsToShow.length, 1));
+    const targetStartY = padding + (dimensions.height - 2 * padding - (targetsToShow.length - 1) * targetSpacing) / 2;
+    
+    targetsToShow.forEach((target, i) => {
+      positions[`target-${target.id}`] = {
+        x: rightX,
+        y: targetStartY + i * targetSpacing,
+        type: 'target',
+        entity: target
+      };
+    });
+
+    return positions;
+  }, [sources, targets, relationships, dimensions]);
+
+  // Calculate edges
+  const edges = useMemo(() => {
+    return relationships
+      .filter(rel => rel.targetType === 'target')
+      .map(rel => {
+        const sourceKey = `source-${rel.sourceId}`;
+        const targetKey = `target-${rel.targetId}`;
+        const source = nodePositions[sourceKey];
+        const target = nodePositions[targetKey];
+        
+        if (!source || !target) return null;
+        
+        return {
+          id: rel.id,
+          relationship: rel,
+          x1: source.x + 80,
+          y1: source.y,
+          x2: target.x - 80,
+          y2: target.y,
+          type: rel.type,
+          color: getTypeColor(rel.type)
+        };
+      })
+      .filter(Boolean);
+  }, [relationships, nodePositions, getTypeColor]);
+
+  // Color mapping for edges
+  const getEdgeColor = (color) => {
+    const colors = {
+      blue: '#3b82f6',
+      purple: '#8b5cf6',
+      orange: '#f97316',
+      red: '#ef4444',
+      green: '#22c55e',
+      cyan: '#06b6d4',
+      indigo: '#6366f1',
+      gray: '#6b7280'
+    };
+    return colors[color] || colors.gray;
+  };
+
+  // Status color mapping
+  const getNodeStatusColor = (status, isTarget) => {
+    const colors = {
+      active: '#22c55e',
+      inactive: '#6b7280',
+      testing: '#f59e0b',
+      planned: '#3b82f6',
+      deprecated: '#ef4444',
+      online: '#22c55e',
+      offline: '#ef4444',
+      degraded: '#f59e0b',
+      maintenance: '#3b82f6'
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  // Handle pan/zoom
+  const handleMouseDown = (e) => {
+    if (e.target === svgRef.current || e.target.classList.contains('graph-bg')) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(z => Math.min(Math.max(z * delta, 0.5), 2));
+  };
+
+  const resetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  // Generate curved path for edges
+  const getEdgePath = (edge) => {
+    const dx = edge.x2 - edge.x1;
+    const controlOffset = Math.min(Math.abs(dx) * 0.4, 150);
+    return `M ${edge.x1} ${edge.y1} C ${edge.x1 + controlOffset} ${edge.y1}, ${edge.x2 - controlOffset} ${edge.y2}, ${edge.x2} ${edge.y2}`;
+  };
+
+  if (Object.keys(nodePositions).length === 0) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-8 text-center">
+        <Network className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+        <div className="text-gray-400 dark:text-gray-500 text-sm">No relationships to display</div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Create relationships from sources to targets to visualize the data flow
+        </p>
+        <button
+          onClick={onAddRelationship}
+          className="mt-4 px-4 py-2 text-xs btn-gradient text-white rounded inline-flex items-center gap-1.5"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add First Relationship
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      {Object.entries(relationshipsByTarget).map(([targetId, data]) => {
-        const isExpanded = expandedTarget === targetId;
-        const target = data.target;
-        const targetTypeInfo = targetTypes.find(t => t.value === target.type);
-        const incomingCount = data.incoming.length;
-        const outgoingCount = data.outgoing?.length || 0;
-        
-        // Group incoming by relationship type for summary
-        const typeGroups = {};
-        data.incoming.forEach(rel => {
-          if (!typeGroups[rel.type]) {
-            typeGroups[rel.type] = [];
-          }
-          typeGroups[rel.type].push(rel);
-        });
-        
-        return (
-          <div 
-            key={targetId}
-            className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden"
+    <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+        <div className="flex items-center gap-2">
+          <Network className="h-4 w-4 text-gray-500" />
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            Data Flow Graph
+          </span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            ({Object.keys(nodePositions).length} nodes, {edges.length} connections)
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setZoom(z => Math.min(z * 1.2, 2))}
+            className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+            title="Zoom In"
           >
-            <button
-              onClick={() => setExpandedTarget(isExpanded ? null : targetId)}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
-                <Target className="h-4 w-4 text-purple-500" />
-                <div className={`w-3 h-3 rounded-full bg-${getTargetStatusColor(target.status)}-500`} />
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{target.name}</span>
-                <span className="text-xs text-purple-500">({targetTypeInfo?.label || target.type})</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {incomingCount} in{outgoingCount > 0 ? ` • ${outgoingCount} out` : ''}
-                </span>
-                <div className="flex items-center gap-1">
-                  {Object.entries(typeGroups).slice(0, 3).map(([type, rels]) => {
-                    const TypeIcon = getTypeIcon(type);
-                    const color = getTypeColor(type);
-                    return (
-                      <div key={type} className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border ${getColorClasses(color)}`}>
-                        <TypeIcon className="h-2.5 w-2.5" />
-                        <span>{rels.length}</span>
-                      </div>
-                    );
-                  })}
-                  {Object.keys(typeGroups).length > 3 && (
-                    <span className="text-[10px] text-gray-400">+{Object.keys(typeGroups).length - 3}</span>
+            <ZoomIn className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setZoom(z => Math.max(z * 0.8, 0.5))}
+            className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+            title="Zoom Out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
+          <button
+            onClick={resetView}
+            className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+            title="Reset View"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+          <span className="text-xs text-gray-400 ml-2">{Math.round(zoom * 100)}%</span>
+        </div>
+      </div>
+
+      {/* Graph Canvas */}
+      <div
+        ref={containerRef}
+        className="relative"
+        style={{ height: '500px', cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
+        <svg
+          ref={svgRef}
+          width="100%"
+          height="100%"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          className="select-none"
+        >
+          <defs>
+            {/* Arrow markers for each color */}
+            {['blue', 'purple', 'orange', 'red', 'green', 'cyan', 'indigo', 'gray'].map(color => (
+              <marker
+                key={color}
+                id={`arrow-${color}`}
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={getEdgeColor(color)} />
+              </marker>
+            ))}
+          </defs>
+
+          {/* Background */}
+          <rect
+            className="graph-bg"
+            width="100%"
+            height="100%"
+            fill="transparent"
+          />
+
+          {/* Transform group for pan/zoom */}
+          <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+            {/* Grid pattern */}
+            <g className="opacity-10">
+              {Array.from({ length: Math.ceil(dimensions.width / 50) }, (_, i) => (
+                <line
+                  key={`v-${i}`}
+                  x1={i * 50}
+                  y1={0}
+                  x2={i * 50}
+                  y2={dimensions.height}
+                  stroke="currentColor"
+                  strokeWidth="0.5"
+                  className="text-gray-400 dark:text-gray-600"
+                />
+              ))}
+              {Array.from({ length: Math.ceil(dimensions.height / 50) }, (_, i) => (
+                <line
+                  key={`h-${i}`}
+                  x1={0}
+                  y1={i * 50}
+                  x2={dimensions.width}
+                  y2={i * 50}
+                  stroke="currentColor"
+                  strokeWidth="0.5"
+                  className="text-gray-400 dark:text-gray-600"
+                />
+              ))}
+            </g>
+
+            {/* Edges */}
+            {edges.map(edge => (
+              <g key={edge.id}>
+                {/* Edge path */}
+                <path
+                  d={getEdgePath(edge)}
+                  fill="none"
+                  stroke={hoveredEdge === edge.id ? getEdgeColor(edge.color) : getEdgeColor(edge.color)}
+                  strokeWidth={hoveredEdge === edge.id || selectedRelationship?.id === edge.id ? 3 : 2}
+                  strokeOpacity={hoveredEdge === edge.id || selectedRelationship?.id === edge.id ? 1 : 0.6}
+                  markerEnd={`url(#arrow-${edge.color})`}
+                  className="transition-all duration-200"
+                  style={{ cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredEdge(edge.id)}
+                  onMouseLeave={() => setHoveredEdge(null)}
+                  onClick={() => setSelectedRelationship(edge.relationship)}
+                />
+                {/* Invisible wider path for easier hovering */}
+                <path
+                  d={getEdgePath(edge)}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth="15"
+                  style={{ cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredEdge(edge.id)}
+                  onMouseLeave={() => setHoveredEdge(null)}
+                  onClick={() => setSelectedRelationship(edge.relationship)}
+                />
+              </g>
+            ))}
+
+            {/* Nodes */}
+            {Object.entries(nodePositions).map(([key, pos]) => {
+              const isSource = pos.type === 'source';
+              const statusColor = getNodeStatusColor(pos.entity.status, !isSource);
+              const isHovered = hoveredNode === key;
+              
+              return (
+                <g
+                  key={key}
+                  transform={`translate(${pos.x}, ${pos.y})`}
+                  onMouseEnter={() => setHoveredNode(key)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  style={{ cursor: 'default' }}
+                >
+                  {/* Node background */}
+                  <rect
+                    x={-80}
+                    y={-20}
+                    width={160}
+                    height={40}
+                    rx={8}
+                    fill={isSource ? '#1e40af' : '#7c3aed'}
+                    fillOpacity={isHovered ? 0.2 : 0.1}
+                    stroke={isSource ? '#3b82f6' : '#8b5cf6'}
+                    strokeWidth={isHovered ? 2 : 1}
+                    className="transition-all duration-200"
+                  />
+                  
+                  {/* Status indicator */}
+                  <circle
+                    cx={-65}
+                    cy={0}
+                    r={5}
+                    fill={statusColor}
+                  />
+                  
+                  {/* Icon */}
+                  {isSource ? (
+                    <g transform="translate(-52, -6)" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+                      <ellipse cx="6" cy="4" rx="5" ry="2" />
+                      <path d="M1 4v4c0 1.1 2.2 2 5 2s5-.9 5-2V4" />
+                      <path d="M1 8v4c0 1.1 2.2 2 5 2s5-.9 5-2V8" />
+                    </g>
+                  ) : (
+                    <g transform="translate(-52, -6)" fill="none" stroke="#8b5cf6" strokeWidth="1.5">
+                      <circle cx="6" cy="6" r="5" />
+                      <circle cx="6" cy="6" r="2" />
+                      <path d="M6 1v2M6 9v2M11 6h-2M3 6H1" />
+                    </g>
+                  )}
+                  
+                  {/* Node label */}
+                  <text
+                    x={-35}
+                    y={0}
+                    dominantBaseline="middle"
+                    className="text-xs font-medium"
+                    fill={isSource ? '#3b82f6' : '#8b5cf6'}
+                    style={{ fontSize: '11px' }}
+                  >
+                    {pos.entity.name.length > 16 ? pos.entity.name.slice(0, 14) + '...' : pos.entity.name}
+                  </text>
+                  
+                  {/* Subtitle */}
+                  <text
+                    x={-35}
+                    y={12}
+                    dominantBaseline="middle"
+                    className="text-[9px]"
+                    fill="#9ca3af"
+                  >
+                    {isSource ? pos.entity.category : targetTypes.find(t => t.value === pos.entity.type)?.label || pos.entity.type}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+
+        {/* Hover tooltip for edges */}
+        {hoveredEdge && (
+          <div
+            className="absolute pointer-events-none bg-gray-900 text-white text-xs rounded px-2 py-1 shadow-lg z-10"
+            style={{ top: 10, right: 10 }}
+          >
+            {(() => {
+              const edge = edges.find(e => e.id === hoveredEdge);
+              if (!edge) return null;
+              const relType = relationshipTypes.find(t => t.value === edge.type);
+              const source = sourcesMap[edge.relationship.sourceId];
+              const target = targetsMap[edge.relationship.targetId];
+              return (
+                <div>
+                  <div className="font-medium">{relType?.label || edge.type}</div>
+                  <div className="text-gray-400">{source?.name} → {target?.name}</div>
+                  {edge.relationship.description && (
+                    <div className="text-gray-400 mt-1">{edge.relationship.description}</div>
                   )}
                 </div>
-              </div>
-            </button>
-            
-            {isExpanded && (
-              <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
-                {/* Incoming sources */}
-                {incomingCount > 0 && (
-                  <div className="mb-4">
-                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                      Incoming Sources ({incomingCount})
-                    </div>
-                    <div className="space-y-2">
-                      {data.incoming.map(rel => {
-                        // Handle both source types (log source or target as source for chained flows)
-                        const isSourceTarget = rel.sourceType === 'target';
-                        const sourceEntity = isSourceTarget ? targetsMap[rel.sourceId] : sourcesMap[rel.sourceId];
-                        const sourceTypeInfo = isSourceTarget ? targetTypes.find(t => t.value === sourceEntity?.type) : null;
-                        const sourceStatusColor = isSourceTarget ? getTargetStatusColor(sourceEntity?.status) : getStatusColor(sourceEntity?.status);
-                        const TypeIcon = getTypeIcon(rel.type);
-                        const typeColor = getTypeColor(rel.type);
-                        const relType = relationshipTypes.find(t => t.value === rel.type);
-                        
-                        return (
-                          <div key={rel.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-                            {isSourceTarget ? (
-                              <Target className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                            ) : (
-                              <Database className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                            )}
-                            <div className={`w-2 h-2 rounded-full bg-${sourceStatusColor}-500 flex-shrink-0`} />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-gray-900 dark:text-white">{sourceEntity?.name || 'Unknown'}</span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                                ({isSourceTarget ? (sourceTypeInfo?.label || sourceEntity?.type) : sourceEntity?.category})
-                              </span>
-                              {rel.description && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
-                              )}
-                            </div>
-                            <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
-                              <TypeIcon className="h-3 w-3" />
-                              {relType?.label}
-                            </div>
-                            {rel.dataFlow && (
-                              <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                                {rel.dataFlow}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
-                                <Edit2 className="h-3 w-3" />
-                              </button>
-                              <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              );
+            })()}
+          </div>
+        )}
 
-                {/* Outgoing to other targets (chained flow) */}
-                {outgoingCount > 0 && (
-                  <div className="mb-4">
-                    <div className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wider mb-2">
-                      Forwards To ({outgoingCount})
-                    </div>
-                    <div className="space-y-2">
-                      {data.outgoing.map(rel => {
-                        const destTarget = targetsMap[rel.targetId];
-                        const destTypeInfo = targetTypes.find(t => t.value === destTarget?.type);
-                        const TypeIcon = getTypeIcon(rel.type);
-                        const typeColor = getTypeColor(rel.type);
-                        const relType = relationshipTypes.find(t => t.value === rel.type);
-                        
-                        return (
-                          <div key={rel.id} className="flex items-center gap-3 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
-                            <ArrowRightCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${getColorClasses(typeColor)}`}>
-                              <TypeIcon className="h-3 w-3" />
-                              {relType?.label}
-                            </div>
-                            <ArrowRight className="h-3.5 w-3.5 text-green-400" />
-                            <Target className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                            <div className={`w-2 h-2 rounded-full bg-${getTargetStatusColor(destTarget?.status)}-500 flex-shrink-0`} />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-gray-900 dark:text-white">{destTarget?.name || 'Unknown'}</span>
-                              <span className="text-xs text-purple-500 ml-1">({destTypeInfo?.label || destTarget?.type})</span>
-                              {rel.description && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{rel.description}</p>
-                              )}
-                            </div>
-                            {rel.dataFlow && (
-                              <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                                {rel.dataFlow}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => onEdit(rel)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
-                                <Edit2 className="h-3 w-3" />
-                              </button>
-                              <button onClick={() => onDelete(rel)} className="p-1 text-gray-400 hover:text-red-500 rounded">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Summary stats for this target */}
-                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(typeGroups).map(([type, rels]) => {
-                      const TypeIcon = getTypeIcon(type);
-                      const color = getTypeColor(type);
-                      const relType = relationshipTypes.find(t => t.value === type);
-                      return (
-                        <div key={type} className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border ${getColorClasses(color)}`}>
-                          <TypeIcon className="h-3 w-3" />
-                          <span>{relType?.label}: {rels.length}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+        {/* Selected relationship panel */}
+        {selectedRelationship && (
+          <div className="absolute bottom-4 left-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`px-2 py-1 rounded text-xs font-medium bg-${getTypeColor(selectedRelationship.type)}-100 dark:bg-${getTypeColor(selectedRelationship.type)}-900/30 text-${getTypeColor(selectedRelationship.type)}-700 dark:text-${getTypeColor(selectedRelationship.type)}-400`}>
+                  {relationshipTypes.find(t => t.value === selectedRelationship.type)?.label}
                 </div>
+                <div className="text-sm">
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {sourcesMap[selectedRelationship.sourceId]?.name}
+                  </span>
+                  <ArrowRight className="h-4 w-4 inline mx-2 text-gray-400" />
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {targetsMap[selectedRelationship.targetId]?.name}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onEdit(selectedRelationship);
+                    setSelectedRelationship(null);
+                  }}
+                  className="p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                  title="Edit"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    onDelete(selectedRelationship);
+                    setSelectedRelationship(null);
+                  }}
+                  className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setSelectedRelationship(null)}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {selectedRelationship.description && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{selectedRelationship.description}</p>
+            )}
+            {(selectedRelationship.dataFlow || selectedRelationship.protocol) && (
+              <div className="flex gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {selectedRelationship.dataFlow && <span>Flow: {selectedRelationship.dataFlow}</span>}
+                {selectedRelationship.protocol && <span>Protocol: {selectedRelationship.protocol}</span>}
               </div>
             )}
           </div>
-        );
-      })}
-      
-      {Object.keys(relationshipsByTarget).length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <Target className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <div className="text-gray-400 dark:text-gray-500 text-sm">No target feeds to display</div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Create relationships from sources to targets to see them here
-          </p>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-blue-500/20 border border-blue-500" />
+            <span className="text-gray-600 dark:text-gray-400">Log Sources</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-purple-500/20 border border-purple-500" />
+            <span className="text-gray-600 dark:text-gray-400">Targets</span>
+          </div>
+          <div className="border-l border-gray-300 dark:border-gray-600 h-4 mx-1" />
+          {relationshipTypes.slice(0, 4).map(type => (
+            <div key={type.value} className="flex items-center gap-1.5">
+              <div className="w-4 h-0.5" style={{ backgroundColor: getEdgeColor(type.color) }} />
+              <span className="text-gray-600 dark:text-gray-400">{type.label}</span>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

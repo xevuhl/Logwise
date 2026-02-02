@@ -33,19 +33,11 @@ import {
   Code,
   Copy,
   CheckCheck,
-  Database,
-  Cpu
+  Database
 } from 'lucide-react';
 import { 
   validationTestLibrary, 
-  mitreTactics, 
-  techniqueToDataSources, 
-  techniqueToDataComponents,
-  mitreDataSources, 
-  mitreDataComponents,
-  categoryToDataSources,
-  getTechniqueComponentCoverage,
-  getCategoryDataComponents
+  mitreTactics
 } from '../constants';
 import { validationAPI } from '../api';
 
@@ -53,6 +45,7 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
   const [search, setSearch] = useState('');
   const [tacticFilter, setTacticFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [readinessFilter, setReadinessFilter] = useState('all');
   const [expandedTest, setExpandedTest] = useState(null);
   const [showRunModal, setShowRunModal] = useState(null);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
@@ -63,64 +56,6 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
   // Get unique tactics
   const tactics = [...new Set(validationTestLibrary.map(t => t.tactic))];
 
-  // Calculate which data sources are provided by collected log sources
-  const providedDataSources = useMemo(() => {
-    const provided = new Set();
-    (sources || [])
-      .filter(s => s.status === 'collected' || s.status === 'partial')
-      .forEach(source => {
-        const categoryDS = categoryToDataSources[source.category] || [];
-        categoryDS.forEach(ds => provided.add(ds));
-      });
-    return provided;
-  }, [sources]);
-
-  // Calculate which data components are provided by collected log sources
-  const providedDataComponents = useMemo(() => {
-    const provided = new Set();
-    (sources || [])
-      .filter(s => s.status === 'collected' || s.status === 'partial')
-      .forEach(source => {
-        const components = getCategoryDataComponents(source.category);
-        components.forEach(comp => provided.add(comp.id));
-      });
-    return provided;
-  }, [sources]);
-
-  // Helper to get technique data source coverage (backwards compatible)
-  const getTechniqueCoverage = (technique) => {
-    const requiredDS = techniqueToDataSources[technique] || [];
-    if (requiredDS.length === 0) return { covered: [], missing: [], percentage: 0 };
-    
-    const covered = requiredDS.filter(ds => providedDataSources.has(ds));
-    const missing = requiredDS.filter(ds => !providedDataSources.has(ds));
-    const percentage = Math.round((covered.length / requiredDS.length) * 100);
-    
-    return { covered, missing, percentage };
-  };
-
-  // Helper to get technique data component coverage (more granular)
-  const getTechniqueComponentCoverageLocal = (technique) => {
-    const requiredDC = techniqueToDataComponents[technique] || [];
-    if (requiredDC.length === 0) return { covered: [], missing: [], percentage: 0, components: [] };
-    
-    const covered = requiredDC.filter(dc => providedDataComponents.has(dc));
-    const missing = requiredDC.filter(dc => !providedDataComponents.has(dc));
-    const percentage = Math.round((covered.length / requiredDC.length) * 100);
-    
-    // Get full component details
-    const coveredComponents = covered.map(id => mitreDataComponents.find(c => c.id === id)).filter(Boolean);
-    const missingComponents = missing.map(id => mitreDataComponents.find(c => c.id === id)).filter(Boolean);
-    
-    return { 
-      covered, 
-      missing, 
-      percentage, 
-      coveredComponents,
-      missingComponents 
-    };
-  };
-
   // Filter tests by campaign
   const campaignTests = useMemo(() => {
     if (selectedCampaign === 'all') {
@@ -129,20 +64,42 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
     return validationTests.filter(t => t.campaignId === selectedCampaign);
   }, [validationTests, selectedCampaign]);
 
-  // Merge library with test results
+  // Helper function to calculate readiness for a test
+  const calculateReadiness = (test) => {
+    const sourceMatches = test.expectedLogSources.map(expected => {
+      const match = sources.find(s => 
+        s.name.toLowerCase().includes(expected.toLowerCase()) ||
+        expected.toLowerCase().includes(s.name.toLowerCase())
+      );
+      return { expected, match, collected: match?.status === 'collected' };
+    });
+    
+    const collectedCount = sourceMatches.filter(s => s.collected).length;
+    const inInventoryCount = sourceMatches.filter(s => s.match).length;
+    const totalExpected = sourceMatches.length;
+    
+    return {
+      collectedCount,
+      inInventoryCount,
+      totalExpected,
+      score: totalExpected > 0 ? Math.round((collectedCount / totalExpected) * 100) : 0,
+      status: collectedCount === totalExpected ? 'ready' : inInventoryCount > 0 ? 'partial' : 'not-ready',
+      sourceMatches
+    };
+  };
+
+  // Merge library with test results and readiness
   const testsWithResults = useMemo(() => {
     return validationTestLibrary.map(test => {
       const result = campaignTests.find(r => r.testId === test.id);
-      const coverage = getTechniqueCoverage(test.technique);
-      const componentCoverage = getTechniqueComponentCoverageLocal(test.technique);
+      const readiness = calculateReadiness(test);
       return {
         ...test,
         result: result || null,
-        dataSourceCoverage: coverage,
-        dataComponentCoverage: componentCoverage,
+        readiness
       };
     });
-  }, [campaignTests, providedDataSources, providedDataComponents]);
+  }, [campaignTests, sources]);
 
   // Filter tests
   const filteredTests = useMemo(() => {
@@ -160,9 +117,14 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
       if (statusFilter === 'failed') matchesStatus = test.result && !test.result?.logCaptured;
       if (statusFilter === 'not-tested') matchesStatus = !test.result;
       
-      return matchesSearch && matchesTactic && matchesStatus;
+      let matchesReadiness = true;
+      if (readinessFilter === 'ready') matchesReadiness = test.readiness.status === 'ready';
+      if (readinessFilter === 'partial') matchesReadiness = test.readiness.status === 'partial';
+      if (readinessFilter === 'not-ready') matchesReadiness = test.readiness.status === 'not-ready';
+      
+      return matchesSearch && matchesTactic && matchesStatus && matchesReadiness;
     });
-  }, [testsWithResults, search, tacticFilter, statusFilter]);
+  }, [testsWithResults, search, tacticFilter, statusFilter, readinessFilter]);
 
   // Group by tactic
   const groupedTests = useMemo(() => {
@@ -182,6 +144,11 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
     const partial = campaignTests.filter(t => t.logCaptured && !t.detectionFired).length;
     const failed = campaignTests.filter(t => !t.logCaptured).length;
     
+    // Readiness stats
+    const ready = testsWithResults.filter(t => t.readiness.status === 'ready').length;
+    const partialReady = testsWithResults.filter(t => t.readiness.status === 'partial').length;
+    const notReady = testsWithResults.filter(t => t.readiness.status === 'not-ready').length;
+    
     return {
       total,
       tested,
@@ -191,8 +158,11 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
       failed,
       coverageScore: tested > 0 ? Math.round((passed / tested) * 100) : 0,
       visibilityScore: total > 0 ? Math.round((tested / total) * 100) : 0,
+      ready,
+      partialReady,
+      notReady
     };
-  }, [campaignTests]);
+  }, [campaignTests, testsWithResults]);
 
   // Get active campaign details
   const activeCampaign = useMemo(() => {
@@ -289,7 +259,7 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <StatCard 
           title="Total Tests" 
           value={stats.total} 
@@ -327,6 +297,13 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
           value={`${stats.coverageScore}%`}
           icon={Shield}
           color="purple"
+        />
+        <StatCard 
+          title="Ready to Test" 
+          value={stats.ready}
+          subtitle={`${stats.partialReady} partial`}
+          icon={Database}
+          color="cyan"
         />
       </div>
 
@@ -366,6 +343,25 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
           <option value="partial">Partial (Log Only)</option>
           <option value="failed">Failed</option>
           <option value="not-tested">Not Tested</option>
+        </select>
+        
+        <select
+          value={readinessFilter}
+          onChange={(e) => setReadinessFilter(e.target.value)}
+          className={`px-3 py-1.5 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            readinessFilter === 'ready' 
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-400'
+              : readinessFilter === 'partial'
+                ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400'
+                : readinessFilter === 'not-ready'
+                  ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
+                  : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white'
+          }`}
+        >
+          <option value="all">All Readiness</option>
+          <option value="ready">✅ Ready ({stats.ready})</option>
+          <option value="partial">⚠️ Partial ({stats.partialReady})</option>
+          <option value="not-ready">❌ Missing Sources ({stats.notReady})</option>
         </select>
       </div>
 
@@ -588,14 +584,8 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
     test.result?.siemQuery || 
     test.result?.sigmaRule;
 
-  // Check which expected sources are in inventory
-  const sourceMatches = test.expectedLogSources.map(expected => {
-    const match = sources.find(s => 
-      s.name.toLowerCase().includes(expected.toLowerCase()) ||
-      expected.toLowerCase().includes(s.name.toLowerCase())
-    );
-    return { expected, match, collected: match?.status === 'collected' };
-  });
+  // Use pre-calculated readiness from test object
+  const { collectedCount, inInventoryCount, totalExpected, status: readinessStatus, sourceMatches } = test.readiness;
 
   return (
     <div className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
@@ -619,22 +609,34 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
         
         {getStatusBadge()}
         
-        {/* Data Source Coverage Indicator */}
-        {test.dataSourceCoverage && test.dataSourceCoverage.percentage > 0 && (
-          <span 
-            className={`px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1 ${
-              test.dataSourceCoverage.percentage === 100
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                : test.dataSourceCoverage.percentage >= 50
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
-                  : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-            }`}
-            title={`${test.dataSourceCoverage.covered.length}/${test.dataSourceCoverage.covered.length + test.dataSourceCoverage.missing.length} data sources available`}
-          >
-            <Database className="h-3 w-3" />
-            {test.dataSourceCoverage.percentage}%
-          </span>
-        )}
+        {/* Inventory Readiness Indicator */}
+        <span 
+          className={`px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1 cursor-help ${
+            readinessStatus === 'ready'
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+              : readinessStatus === 'partial'
+                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+          }`}
+          title={`${collectedCount}/${totalExpected} log sources collected in inventory${
+            inInventoryCount > collectedCount 
+              ? ` (${inInventoryCount - collectedCount} more in inventory but not collected)` 
+              : ''
+          }${
+            totalExpected > inInventoryCount 
+              ? `\nMissing: ${sourceMatches.filter(s => !s.match).map(s => s.expected).join(', ')}` 
+              : ''
+          }`}
+        >
+          {readinessStatus === 'ready' ? (
+            <CheckCircle className="h-3 w-3" />
+          ) : readinessStatus === 'partial' ? (
+            <AlertTriangle className="h-3 w-3" />
+          ) : (
+            <XCircle className="h-3 w-3" />
+          )}
+          {collectedCount}/{totalExpected}
+        </span>
         
         {hasEvidence && (
           <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded text-[10px] text-purple-600 dark:text-purple-400" title="Has evidence attached">
@@ -708,133 +710,6 @@ function TestRow({ test, isExpanded, onToggle, onRunTest, onShowHistory, sources
                 ))}
               </div>
             </div>
-
-            {/* MITRE Data Source Coverage */}
-            {test.dataSourceCoverage && (
-              <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Database className="h-3.5 w-3.5" />
-                    MITRE Data Source Coverage
-                  </div>
-                  <div className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    test.dataSourceCoverage.percentage === 100 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : test.dataSourceCoverage.percentage >= 50
-                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                  }`}>
-                    {test.dataSourceCoverage.percentage}% Coverage
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {test.dataSourceCoverage.covered.length > 0 && (
-                    <div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✓ Available Data Sources</div>
-                      <div className="flex flex-wrap gap-1">
-                        {test.dataSourceCoverage.covered.map(dsId => {
-                          const ds = mitreDataSources.find(d => d.id === dsId);
-                          return (
-                            <span 
-                              key={dsId}
-                              className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-400"
-                              title={ds?.name || dsId}
-                            >
-                              {ds?.name || dsId}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {test.dataSourceCoverage.missing.length > 0 && (
-                    <div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✗ Missing Data Sources</div>
-                      <div className="flex flex-wrap gap-1">
-                        {test.dataSourceCoverage.missing.map(dsId => {
-                          const ds = mitreDataSources.find(d => d.id === dsId);
-                          return (
-                            <span 
-                              key={dsId}
-                              className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-700 dark:text-red-400"
-                              title={ds?.name || dsId}
-                            >
-                              {ds?.name || dsId}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {test.dataSourceCoverage.covered.length === 0 && test.dataSourceCoverage.missing.length === 0 && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">
-                      No specific data sources mapped for this technique
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* MITRE Data Component Coverage (more granular) */}
-            {test.dataComponentCoverage && test.dataComponentCoverage.percentage > 0 && (
-              <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Cpu className="h-3.5 w-3.5" />
-                    Data Components (Granular)
-                  </div>
-                  <div className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    test.dataComponentCoverage.percentage === 100 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : test.dataComponentCoverage.percentage >= 50
-                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                  }`}>
-                    {test.dataComponentCoverage.percentage}% ({test.dataComponentCoverage.covered.length}/{test.dataComponentCoverage.covered.length + test.dataComponentCoverage.missing.length})
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {test.dataComponentCoverage.coveredComponents?.length > 0 && (
-                    <div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✓ Available Components</div>
-                      <div className="flex flex-wrap gap-1">
-                        {test.dataComponentCoverage.coveredComponents.map(comp => (
-                          <a 
-                            key={comp.id}
-                            href={`https://attack.mitre.org/datacomponents/${comp.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/40 transition-colors"
-                            title={`${comp.id}: ${comp.description}`}
-                          >
-                            {comp.name}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {test.dataComponentCoverage.missingComponents?.length > 0 && (
-                    <div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">✗ Missing Components</div>
-                      <div className="flex flex-wrap gap-1">
-                        {test.dataComponentCoverage.missingComponents.map(comp => (
-                          <a 
-                            key={comp.id}
-                            href={`https://attack.mitre.org/datacomponents/${comp.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/40 transition-colors"
-                            title={`${comp.id}: ${comp.description}`}
-                          >
-                            {comp.name}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Validation Guidance Section */}
             {test.guidance && (
