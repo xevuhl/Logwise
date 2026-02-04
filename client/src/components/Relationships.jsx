@@ -301,27 +301,44 @@ function InteractiveGraph({
   // Calculate node positions
   const nodePositions = useMemo(() => {
     const positions = {};
-    const padding = 60;
-    const nodeHeight = 45;
-    const leftX = padding + 100;
-    const rightX = dimensions.width - padding - 100;
+    const padding = 80;
+    const nodeHeight = 50;
+    const minSpacing = 80; // Minimum vertical spacing between nodes
+    const leftX = padding + 80;
+    const midX = dimensions.width / 2;
+    const rightX = dimensions.width - padding - 80;
     
     // Get sources and targets that have relationships
     const connectedSourceIds = new Set();
     const connectedTargetIds = new Set();
+    // Track targets that act as intermediate nodes (both receive and send data)
+    const intermediateTargetIds = new Set();
+    // Track targets that only receive (final destinations)
+    const finalTargetIds = new Set();
     
     relationships.forEach(rel => {
       if (!rel.sourceType || rel.sourceType === 'source') {
         connectedSourceIds.add(rel.sourceId);
+      }
+      if (rel.sourceType === 'target') {
+        // This target is a source for another relationship (intermediate)
+        intermediateTargetIds.add(rel.sourceId);
       }
       if (rel.targetType === 'target') {
         connectedTargetIds.add(rel.targetId);
       }
     });
 
-    // Position sources on the left
+    // Determine which targets are final destinations (receive but don't send)
+    connectedTargetIds.forEach(id => {
+      if (!intermediateTargetIds.has(id)) {
+        finalTargetIds.add(id);
+      }
+    });
+
+    // Position sources on the left with better spacing
     const sourcesToShow = sources.filter(s => connectedSourceIds.has(s.id));
-    const sourceSpacing = Math.min(nodeHeight + 20, (dimensions.height - 2 * padding) / Math.max(sourcesToShow.length, 1));
+    const sourceSpacing = Math.max(minSpacing, (dimensions.height - 2 * padding) / Math.max(sourcesToShow.length, 1));
     const sourceStartY = padding + (dimensions.height - 2 * padding - (sourcesToShow.length - 1) * sourceSpacing) / 2;
     
     sourcesToShow.forEach((source, i) => {
@@ -329,38 +346,73 @@ function InteractiveGraph({
         x: leftX,
         y: sourceStartY + i * sourceSpacing,
         type: 'source',
-        entity: source
+        entity: source,
+        index: i
       };
     });
 
-    // Position targets on the right
-    const targetsToShow = (targets || []).filter(t => connectedTargetIds.has(t.id));
-    const targetSpacing = Math.min(nodeHeight + 20, (dimensions.height - 2 * padding) / Math.max(targetsToShow.length, 1));
-    const targetStartY = padding + (dimensions.height - 2 * padding - (targetsToShow.length - 1) * targetSpacing) / 2;
+    // Position intermediate targets in the middle (targets that feed other targets)
+    const intermediateTargets = (targets || []).filter(t => intermediateTargetIds.has(t.id));
+    const intermediateSpacing = Math.max(minSpacing, (dimensions.height - 2 * padding) / Math.max(intermediateTargets.length, 1));
+    const intermediateStartY = padding + (dimensions.height - 2 * padding - (intermediateTargets.length - 1) * intermediateSpacing) / 2;
     
-    targetsToShow.forEach((target, i) => {
+    intermediateTargets.forEach((target, i) => {
+      positions[`target-${target.id}`] = {
+        x: midX,
+        y: intermediateStartY + i * intermediateSpacing,
+        type: 'target',
+        entity: target,
+        isIntermediate: true,
+        index: i
+      };
+    });
+
+    // Position final targets on the right with better spacing
+    const finalTargets = (targets || []).filter(t => finalTargetIds.has(t.id));
+    const targetSpacing = Math.max(minSpacing, (dimensions.height - 2 * padding) / Math.max(finalTargets.length, 1));
+    const targetStartY = padding + (dimensions.height - 2 * padding - (finalTargets.length - 1) * targetSpacing) / 2;
+    
+    finalTargets.forEach((target, i) => {
       positions[`target-${target.id}`] = {
         x: rightX,
         y: targetStartY + i * targetSpacing,
         type: 'target',
-        entity: target
+        entity: target,
+        isIntermediate: false,
+        index: i
       };
     });
 
     return positions;
   }, [sources, targets, relationships, dimensions]);
 
-  // Calculate edges
+  // Calculate edges with indices for offsetting overlapping paths
   const edges = useMemo(() => {
-    return relationships
+    // Group edges by their target to calculate offsets
+    const edgesByTarget = {};
+    
+    const rawEdges = relationships
       .filter(rel => rel.targetType === 'target')
       .map(rel => {
-        const sourceKey = `source-${rel.sourceId}`;
+        // Handle both source-to-target and target-to-target relationships
+        const sourceKey = rel.sourceType === 'target' 
+          ? `target-${rel.sourceId}` 
+          : `source-${rel.sourceId}`;
         const targetKey = `target-${rel.targetId}`;
         const source = nodePositions[sourceKey];
         const target = nodePositions[targetKey];
         
         if (!source || !target) return null;
+        
+        // Determine if this is a target-to-target edge
+        const isTargetToTarget = rel.sourceType === 'target';
+        
+        // Track edges going to the same target for offset calculation
+        if (!edgesByTarget[targetKey]) {
+          edgesByTarget[targetKey] = [];
+        }
+        const edgeIndex = edgesByTarget[targetKey].length;
+        edgesByTarget[targetKey].push(rel.id);
         
         return {
           id: rel.id,
@@ -369,11 +421,22 @@ function InteractiveGraph({
           y1: source.y,
           x2: target.x - 80,
           y2: target.y,
+          sourceY: source.y,
+          targetY: target.y,
           type: rel.type,
-          color: getTypeColor(rel.type)
+          color: getTypeColor(rel.type),
+          isTargetToTarget,
+          edgeIndex,
+          targetKey
         };
       })
       .filter(Boolean);
+    
+    // Add total count for each target to calculate proper offsets
+    return rawEdges.map(edge => ({
+      ...edge,
+      totalEdgesToTarget: edgesByTarget[edge.targetKey].length
+    }));
   }, [relationships, nodePositions, getTypeColor]);
 
   // Color mapping for edges
@@ -436,11 +499,41 @@ function InteractiveGraph({
     setPan({ x: 0, y: 0 });
   };
 
-  // Generate curved path for edges
+  // Generate curved path for edges that avoids crossing through nodes
   const getEdgePath = (edge) => {
     const dx = edge.x2 - edge.x1;
-    const controlOffset = Math.min(Math.abs(dx) * 0.4, 150);
-    return `M ${edge.x1} ${edge.y1} C ${edge.x1 + controlOffset} ${edge.y1}, ${edge.x2 - controlOffset} ${edge.y2}, ${edge.x2} ${edge.y2}`;
+    const dy = edge.y2 - edge.y1;
+    
+    // Calculate offset for multiple edges to same target
+    const offsetMultiplier = edge.edgeIndex - (edge.totalEdgesToTarget - 1) / 2;
+    const verticalOffset = offsetMultiplier * 15; // 15px offset per edge
+    
+    // Determine curve direction based on source/target Y positions
+    // This helps routes avoid crossing through intermediate nodes
+    const curveDirection = dy > 0 ? 1 : dy < 0 ? -1 : (edge.edgeIndex % 2 === 0 ? 1 : -1);
+    
+    // For edges with significant vertical difference, use a more pronounced curve
+    const yDiff = Math.abs(dy);
+    const curveFactor = Math.min(yDiff * 0.3, 80) + Math.abs(verticalOffset);
+    
+    // Control point offsets - horizontal spread and vertical curve
+    const controlOffsetX = Math.min(Math.abs(dx) * 0.35, 120);
+    
+    // Calculate midpoint with vertical offset to avoid nodes
+    const midX = (edge.x1 + edge.x2) / 2;
+    const midY = (edge.y1 + edge.y2) / 2 + verticalOffset;
+    
+    // For edges going to different Y levels, curve away from center
+    if (yDiff > 30) {
+      // Use quadratic bezier through an offset midpoint for cleaner routing
+      const curveY = midY + (curveDirection * curveFactor * 0.5);
+      return `M ${edge.x1} ${edge.y1} Q ${midX} ${curveY}, ${edge.x2} ${edge.y2}`;
+    }
+    
+    // For relatively horizontal edges, use simple cubic bezier with offset
+    const cp1y = edge.y1 + verticalOffset;
+    const cp2y = edge.y2 + verticalOffset;
+    return `M ${edge.x1} ${edge.y1} C ${edge.x1 + controlOffsetX} ${cp1y}, ${edge.x2 - controlOffsetX} ${cp2y}, ${edge.x2} ${edge.y2}`;
   };
 
   if (Object.keys(nodePositions).length === 0) {
@@ -505,8 +598,34 @@ function InteractiveGraph({
       <div
         ref={containerRef}
         className="relative"
-        style={{ height: '500px', cursor: isDragging ? 'grabbing' : 'grab' }}
+        style={{ height: '600px', cursor: isDragging ? 'grabbing' : 'grab' }}
       >
+        {/* Legend */}
+        <div className="absolute top-2 left-2 z-10 bg-white/90 dark:bg-gray-800/90 rounded border border-gray-200 dark:border-gray-600 p-2 text-xs">
+          <div className="font-medium text-gray-700 dark:text-gray-300 mb-1.5">Legend</div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-blue-500/20 border border-blue-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Log Source</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-orange-500/20 border border-orange-500 border-dashed"></div>
+              <span className="text-gray-600 dark:text-gray-400">Intermediate Target</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-purple-500/20 border border-purple-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Final Destination</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-600">
+              <div className="w-4 h-0.5 bg-blue-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">Source → Target</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-blue-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #3b82f6, #3b82f6 4px, transparent 4px, transparent 6px)' }}></div>
+              <span className="text-gray-600 dark:text-gray-400">Target → Target</span>
+            </div>
+          </div>
+        </div>
         <svg
           ref={svgRef}
           width="100%"
@@ -584,6 +703,7 @@ function InteractiveGraph({
                   stroke={hoveredEdge === edge.id ? getEdgeColor(edge.color) : getEdgeColor(edge.color)}
                   strokeWidth={hoveredEdge === edge.id || selectedRelationship?.id === edge.id ? 3 : 2}
                   strokeOpacity={hoveredEdge === edge.id || selectedRelationship?.id === edge.id ? 1 : 0.6}
+                  strokeDasharray={edge.isTargetToTarget ? '8,4' : 'none'}
                   markerEnd={`url(#arrow-${edge.color})`}
                   className="transition-all duration-200"
                   style={{ cursor: 'pointer' }}
@@ -591,6 +711,20 @@ function InteractiveGraph({
                   onMouseLeave={() => setHoveredEdge(null)}
                   onClick={() => setSelectedRelationship(edge.relationship)}
                 />
+                {/* Target-to-target label */}
+                {edge.isTargetToTarget && (
+                  <text
+                    x={(edge.x1 + edge.x2) / 2}
+                    y={(edge.y1 + edge.y2) / 2 - 10}
+                    textAnchor="middle"
+                    fill={getEdgeColor(edge.color)}
+                    fontSize="9"
+                    fontWeight="500"
+                    className="pointer-events-none"
+                  >
+                    Target → Target
+                  </text>
+                )}
                 {/* Invisible wider path for easier hovering */}
                 <path
                   d={getEdgePath(edge)}
@@ -608,8 +742,13 @@ function InteractiveGraph({
             {/* Nodes */}
             {Object.entries(nodePositions).map(([key, pos]) => {
               const isSource = pos.type === 'source';
+              const isIntermediate = pos.isIntermediate;
               const statusColor = getNodeStatusColor(pos.entity.status, !isSource);
               const isHovered = hoveredNode === key;
+              
+              // Color scheme: sources = blue, intermediate targets = orange, final targets = purple
+              const nodeColor = isSource ? '#1e40af' : (isIntermediate ? '#ea580c' : '#7c3aed');
+              const strokeColor = isSource ? '#3b82f6' : (isIntermediate ? '#f97316' : '#8b5cf6');
               
               return (
                 <g
@@ -626,10 +765,11 @@ function InteractiveGraph({
                     width={160}
                     height={40}
                     rx={8}
-                    fill={isSource ? '#1e40af' : '#7c3aed'}
+                    fill={nodeColor}
                     fillOpacity={isHovered ? 0.2 : 0.1}
-                    stroke={isSource ? '#3b82f6' : '#8b5cf6'}
+                    stroke={strokeColor}
                     strokeWidth={isHovered ? 2 : 1}
+                    strokeDasharray={isIntermediate ? '4,2' : 'none'}
                     className="transition-all duration-200"
                   />
                   
@@ -647,6 +787,14 @@ function InteractiveGraph({
                       <ellipse cx="6" cy="4" rx="5" ry="2" />
                       <path d="M1 4v4c0 1.1 2.2 2 5 2s5-.9 5-2V4" />
                       <path d="M1 8v4c0 1.1 2.2 2 5 2s5-.9 5-2V8" />
+                    </g>
+                  ) : isIntermediate ? (
+                    <g transform="translate(-52, -6)" fill="none" stroke="#f97316" strokeWidth="1.5">
+                      {/* Router/collector icon for intermediate targets */}
+                      <rect x="1" y="3" width="10" height="6" rx="1" />
+                      <circle cx="4" cy="6" r="1" fill="#f97316" />
+                      <circle cx="8" cy="6" r="1" fill="#f97316" />
+                      <path d="M6 0v3M6 9v3M0 6h1M11 6h1" />
                     </g>
                   ) : (
                     <g transform="translate(-52, -6)" fill="none" stroke="#8b5cf6" strokeWidth="1.5">

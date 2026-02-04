@@ -42,7 +42,6 @@ function Onboarding({ sources, onCreate, onClose }) {
     credentials: '',
     validationPlan: '',
     expectedFields: '',
-    jsonMappingSchema: '',
     sampleQuery: '',
     status: 'planned',
     notes: ''
@@ -582,22 +581,6 @@ function StepTechnical({ formData, setFormData, errors }) {
 }
 
 function StepValidation({ formData, setFormData, errors }) {
-  const [jsonError, setJsonError] = useState(null);
-  
-  const handleJsonChange = (value) => {
-    setFormData({ ...formData, jsonMappingSchema: value });
-    if (value.trim()) {
-      try {
-        JSON.parse(value);
-        setJsonError(null);
-      } catch (e) {
-        setJsonError('Invalid JSON format');
-      }
-    } else {
-      setJsonError(null);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -624,31 +607,6 @@ function StepValidation({ formData, setFormData, errors }) {
           placeholder="List key fields that should be present in the logs (e.g., timestamp, source_ip, user, action, status)"
           className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          JSON Mapping Schema
-          <span className="font-normal text-xs text-gray-500 ml-2">(Optional)</span>
-        </label>
-        <textarea
-          value={formData.jsonMappingSchema || ''}
-          onChange={(e) => handleJsonChange(e.target.value)}
-          rows={5}
-          placeholder={`{\n  "timestamp": "@timestamp",\n  "source_ip": "src.ip",\n  "destination_ip": "dst.ip",\n  "user": "user.name",\n  "action": "event.action"\n}`}
-          className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded text-gray-900 dark:text-white placeholder-gray-500 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-            jsonError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-          }`}
-        />
-        {jsonError && (
-          <p className="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            {jsonError}
-          </p>
-        )}
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Define field mappings from raw log format to your SIEM's normalized schema
-        </p>
       </div>
       
       <div>
@@ -770,22 +728,12 @@ function StepReview({ formData }) {
         </ReviewSection>
       )}
 
-      {/* Validation & Mapping */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReviewSection title="Validation">
-          <ReviewItem label="Validation Plan" value={formData.validationPlan} />
-          <ReviewItem label="Expected Fields" value={formData.expectedFields} />
-          <ReviewItem label="Sample Query" value={formData.sampleQuery} />
-        </ReviewSection>
-
-        {formData.jsonMappingSchema && (
-          <ReviewSection title="JSON Mapping Schema">
-            <pre className="text-xs text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-x-auto font-mono">
-              {formData.jsonMappingSchema}
-            </pre>
-          </ReviewSection>
-        )}
-      </div>
+      {/* Validation */}
+      <ReviewSection title="Validation">
+        <ReviewItem label="Validation Plan" value={formData.validationPlan} />
+        <ReviewItem label="Expected Fields" value={formData.expectedFields} />
+        <ReviewItem label="Sample Query" value={formData.sampleQuery} />
+      </ReviewSection>
 
       {/* Notes */}
       {formData.notes && (

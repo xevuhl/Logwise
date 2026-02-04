@@ -1178,23 +1178,82 @@ async function fetchCriblSources(integration) {
     // Get bearer token
     const token = await getCriblBearerToken(integration);
     
-    // Fetch destinations (outputs) from Cribl
-    const groupPath = workerGroup ? `/m/${workerGroup}` : '';
-    const url = `${baseUrl}/api/v1${groupPath}/system/outputs`;
-    console.log('[Cribl] Fetching destinations from:', url);
+    // For Cribl Cloud, we need to use the fleet/worker group path
+    // If no worker group specified, try 'default' for Cloud
+    let groupPath = '';
+    if (workerGroup) {
+      groupPath = `/m/${workerGroup}`;
+    } else if (baseUrl.includes('.cribl.cloud')) {
+      // For Cribl Cloud without explicit worker group, use default fleet
+      groupPath = '/m/default';
+    }
     
-    const response = await fetch(url, {
+    // First, try to list all outputs/destinations
+    const outputsUrl = `${baseUrl}/api/v1${groupPath}/system/outputs`;
+    console.log('[Cribl] Fetching destinations from:', outputsUrl);
+    
+    const outputsResponse = await fetch(outputsUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch destinations: ${response.status} ${response.statusText}`);
+    // If 403, provide helpful message about permissions
+    if (outputsResponse.status === 403) {
+      console.log('[Cribl] 403 Forbidden on outputs endpoint');
+      
+      // Try the inputs endpoint as an alternative
+      const inputsUrl = `${baseUrl}/api/v1${groupPath}/system/inputs`;
+      console.log('[Cribl] Trying inputs endpoint:', inputsUrl);
+      
+      const inputsResponse = await fetch(inputsUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (inputsResponse.status === 403) {
+        return {
+          success: false,
+          message: `Permission denied (403 Forbidden). Your Cribl API credentials may not have sufficient permissions. 
+            
+For Cribl Cloud:
+1. Go to your Cribl Cloud Organization Settings → Access → API Credentials
+2. Ensure your API client has the "Admin" role or specific read permissions for "Sources" and "Destinations"
+3. If using a Worker Group, specify it in the integration settings (current path: ${groupPath || 'none'})
+
+For Cribl Enterprise/Hybrid:
+- Ensure your user has the required RBAC permissions to view system inputs/outputs`,
+          sources: []
+        };
+      }
+      
+      // Inputs endpoint worked, use that
+      if (inputsResponse.ok) {
+        const inputsData = await inputsResponse.json();
+        const criblInputs = inputsData.items || [];
+        console.log('[Cribl] Found', criblInputs.length, 'inputs (using inputs endpoint)');
+        
+        const mappedSources = criblInputs.map(input => mapCriblInputToLogwise(input, integration));
+        
+        return {
+          success: true,
+          sources: mappedSources,
+          raw: criblInputs,
+          endpoint: 'inputs'
+        };
+      }
     }
     
-    const data = await response.json();
+    if (!outputsResponse.ok) {
+      const errorText = await outputsResponse.text();
+      console.log('[Cribl] Outputs error response:', errorText.substring(0, 200));
+      throw new Error(`Failed to fetch destinations: ${outputsResponse.status} ${outputsResponse.statusText}`);
+    }
+    
+    const data = await outputsResponse.json();
     const criblDestinations = data.items || [];
     console.log('[Cribl] Found', criblDestinations.length, 'destinations');
     
@@ -1204,7 +1263,8 @@ async function fetchCriblSources(integration) {
     return {
       success: true,
       sources: mappedSources,
-      raw: criblDestinations
+      raw: criblDestinations,
+      endpoint: 'outputs'
     };
   } catch (error) {
     console.log('[Cribl] Fetch error:', error.message);
@@ -1214,6 +1274,72 @@ async function fetchCriblSources(integration) {
       sources: []
     };
   }
+}
+
+// Map Cribl inputs to Logwise format (alternative to destinations)
+function mapCriblInputToLogwise(input, integration) {
+  const typeToCategory = {
+    'syslog': 'Network',
+    'tcp': 'Network',
+    'udp': 'Network',
+    'http': 'Web',
+    'splunk_hec': 'Application',
+    'elastic': 'Application',
+    's3': 'Cloud',
+    'sqs': 'Cloud',
+    'kafka': 'Application',
+    'kinesis': 'Cloud',
+    'azure_blob': 'Cloud',
+    'azure_event_hub': 'Cloud',
+    'gcp_pubsub': 'Cloud',
+    'office365': 'Cloud',
+    'windows_event': 'Endpoint',
+    'file': 'Application',
+    'exec': 'Endpoint',
+    'snmp': 'Network',
+    'datagen': 'Application'
+  };
+  
+  const typeToLogType = {
+    'syslog': 'syslog',
+    'tcp': 'syslog',
+    'udp': 'syslog',
+    'http': 'json',
+    'splunk_hec': 'json',
+    'elastic': 'json',
+    's3': 'json',
+    'sqs': 'json',
+    'kafka': 'json',
+    'kinesis': 'json',
+    'azure_blob': 'json',
+    'azure_event_hub': 'json',
+    'gcp_pubsub': 'json',
+    'office365': 'json',
+    'windows_event': 'windows-event',
+    'file': 'file',
+    'exec': 'other',
+    'snmp': 'other'
+  };
+  
+  const inputType = input.type || 'unknown';
+  const isEnabled = !input.disabled;
+  
+  return {
+    name: input.id || input.name || 'Unknown Input',
+    description: input.description || `Cribl input source (${inputType})`,
+    category: typeToCategory[inputType] || 'Application',
+    logType: typeToLogType[inputType] || 'other',
+    status: isEnabled ? 'collected' : 'not-collected',
+    criblId: input.id,
+    criblType: inputType,
+    integrationId: integration.id,
+    ownerTeam: '',
+    ownerContact: '',
+    criticalityTier: 'tier-3',
+    retention: '90d',
+    notes: `Cribl input from "${integration.name}". Type: ${inputType}. Port: ${input.port || 'N/A'}. ${input.description || ''}`.trim(),
+    tags: ['cribl-input', inputType, isEnabled ? 'enabled' : 'disabled']
+  };
 }
 
 async function syncCriblSources(integration, options = {}) {

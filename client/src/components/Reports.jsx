@@ -292,722 +292,168 @@ function Reports({ sources, assessments, validationTests }) {
 
   const handleExportPresentation = () => {
     const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const reportTitle = getReportTitle();
+    const title = getReportTitle();
     
-    // Generate slides based on report type
-    const slides = generatePresentationSlides(activeReport, metrics, gaps, sources, assessmentByCategory, complianceStatus);
+    // Build slides HTML
+    const slides = buildPresentationSlides(activeReport, title, reportDate, metrics, gaps, sources, assessmentByCategory);
     
-    const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logwise - ${reportTitle}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
-      min-height: 100vh;
-    }
-    
-    /* Slide container */
-    .presentation {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-    
-    .slide {
-      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
-      border-radius: 24px;
-      padding: 60px;
-      margin-bottom: 40px;
-      min-height: 720px;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.1);
-    }
-    
-    .slide::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #06b6d4, #8b5cf6, #ec4899);
-    }
-    
-    /* Title slide */
-    .slide.title-slide {
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-    }
-    
-    .slide.title-slide::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    
-    .title-slide .logo {
-      font-size: 24px;
-      font-weight: 800;
-      background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 40px;
-      letter-spacing: 2px;
-    }
-    
-    .title-slide h1 {
-      font-size: 56px;
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 24px;
-      background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .title-slide .subtitle {
-      font-size: 24px;
-      color: #94a3b8;
-      margin-bottom: 60px;
-    }
-    
-    .title-slide .meta {
-      display: flex;
-      gap: 40px;
-      font-size: 14px;
-      color: #64748b;
-    }
-    
-    .title-slide .meta span {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    /* Content slides */
-    .slide-header {
-      margin-bottom: 40px;
-    }
-    
-    .slide-header h2 {
-      font-size: 36px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .slide-header .subtitle {
-      font-size: 16px;
-      color: #94a3b8;
-    }
-    
-    .slide-content {
-      flex: 1;
-    }
-    
-    /* Metrics grid */
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      margin-bottom: 40px;
-    }
-    
-    .metric-card {
-      background: rgba(30, 41, 59, 0.8);
-      border-radius: 16px;
-      padding: 32px;
-      text-align: center;
-      border: 1px solid rgba(148, 163, 184, 0.1);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .metric-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-    }
-    
-    .metric-card.green::before { background: linear-gradient(90deg, #10b981, #059669); }
-    .metric-card.yellow::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
-    .metric-card.red::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
-    .metric-card.blue::before { background: linear-gradient(90deg, #3b82f6, #6366f1); }
-    .metric-card.purple::before { background: linear-gradient(90deg, #8b5cf6, #a855f7); }
-    
-    .metric-card .value {
-      font-size: 48px;
-      font-weight: 800;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-    
-    .metric-card.green .value { color: #10b981; }
-    .metric-card.yellow .value { color: #f59e0b; }
-    .metric-card.red .value { color: #ef4444; }
-    .metric-card.blue .value { color: #3b82f6; }
-    .metric-card.purple .value { color: #8b5cf6; }
-    
-    .metric-card .label {
-      font-size: 13px;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 500;
-    }
-    
-    /* Two column layout */
-    .two-columns {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 40px;
-    }
-    
-    /* Data table */
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-    
-    .data-table th {
-      text-align: left;
-      padding: 16px 20px;
-      background: rgba(30, 41, 59, 0.6);
-      color: #94a3b8;
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 1px;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-    }
-    
-    .data-table td {
-      padding: 16px 20px;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.05);
-      color: #e2e8f0;
-    }
-    
-    .data-table tr:hover td {
-      background: rgba(30, 41, 59, 0.4);
-    }
-    
-    /* Status badges */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    .badge.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-    .badge.yellow { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-    .badge.red { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    .badge.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-    .badge.gray { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
-    
-    /* Progress bar */
-    .progress-bar {
-      height: 8px;
-      background: rgba(30, 41, 59, 0.8);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    
-    .progress-bar .fill {
-      height: 100%;
-      border-radius: 4px;
-    }
-    
-    .progress-bar .fill.green { background: linear-gradient(90deg, #10b981, #059669); }
-    .progress-bar .fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
-    .progress-bar .fill.red { background: linear-gradient(90deg, #ef4444, #dc2626); }
-    .progress-bar .fill.blue { background: linear-gradient(90deg, #3b82f6, #6366f1); }
-    
-    /* Callout box */
-    .callout {
-      background: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      border-radius: 12px;
-      padding: 24px;
-      margin: 24px 0;
-    }
-    
-    .callout.danger {
-      background: rgba(239, 68, 68, 0.1);
-      border-color: rgba(239, 68, 68, 0.3);
-    }
-    
-    .callout.success {
-      background: rgba(16, 185, 129, 0.1);
-      border-color: rgba(16, 185, 129, 0.3);
-    }
-    
-    .callout h4 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #f59e0b;
-    }
-    
-    .callout.danger h4 { color: #ef4444; }
-    .callout.success h4 { color: #10b981; }
-    
-    .callout ul {
-      list-style: none;
-      padding: 0;
-    }
-    
-    .callout li {
-      padding: 8px 0;
-      padding-left: 20px;
-      position: relative;
-      color: #e2e8f0;
-      font-size: 14px;
-    }
-    
-    .callout li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      color: #f59e0b;
-    }
-    
-    .callout.danger li::before { color: #ef4444; }
-    .callout.success li::before { color: #10b981; }
-    
-    /* Slide footer */
-    .slide-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 24px;
-      border-top: 1px solid rgba(148, 163, 184, 0.1);
-      margin-top: auto;
-      font-size: 12px;
-      color: #64748b;
-    }
-    
-    .slide-footer .brand {
-      font-weight: 600;
-      background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    /* Category breakdown */
-    .category-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-    }
-    
-    .category-item {
-      background: rgba(30, 41, 59, 0.6);
-      border-radius: 12px;
-      padding: 20px;
-      border: 1px solid rgba(148, 163, 184, 0.1);
-    }
-    
-    .category-item .name {
-      font-size: 14px;
-      font-weight: 600;
-      color: #e2e8f0;
-      margin-bottom: 8px;
-    }
-    
-    .category-item .stats {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-bottom: 12px;
-    }
-    
-    /* Print styles */
-    @media print {
-      body { background: white; color: #1e293b; }
-      .slide { 
-        break-after: page; 
-        box-shadow: none;
-        border: 1px solid #e2e8f0;
-        background: white;
-      }
-      .slide::before { background: linear-gradient(90deg, #06b6d4, #8b5cf6); }
-      .slide-header h2 { color: #1e293b; -webkit-text-fill-color: #1e293b; }
-      .title-slide h1 { color: #1e293b; -webkit-text-fill-color: #1e293b; }
-      .metric-card { background: #f8fafc; border: 1px solid #e2e8f0; }
-      .data-table th { background: #f1f5f9; color: #475569; }
-      .data-table td { color: #334155; border-color: #e2e8f0; }
-    }
-    
-    @page { size: landscape; margin: 0.5in; }
-  </style>
-</head>
-<body>
-  <div class="presentation">
-    ${slides}
-  </div>
-</body>
-</html>`;
+    // Build full HTML document
+    const htmlContent = buildPresentationHTML(title, slides);
 
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = \`logwise-\${activeReport}-presentation-\${new Date().toISOString().split('T')[0]}.html\`;
+    a.download = `logwise-${activeReport}-presentation-${new Date().toISOString().split('T')[0]}.html`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // Generate presentation slides based on report type
-  function generatePresentationSlides(reportType, metrics, gaps, sources, assessmentByCategory, complianceStatus) {
-    const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const reportTitle = getReportTitle();
-    
+  // Helper function to build presentation slides HTML
+  function buildPresentationSlides(reportType, title, reportDate, metrics, gaps, sources, assessmentByCategory) {
     let slides = '';
     
-    // Title slide (always first)
-    slides += \`
-    <div class="slide title-slide">
-      <div class="logo">LOGWISE</div>
-      <h1>\${reportTitle}</h1>
-      <div class="subtitle">Security Log Source Coverage Analysis</div>
-      <div class="meta">
-        <span>📅 \${reportDate}</span>
-        <span>📊 \${sources.length} Log Sources</span>
-        <span>🎯 \${metrics.coveragePercent}% Coverage</span>
-      </div>
-    </div>\`;
+    // Title slide
+    slides += '<div class="slide title-slide">';
+    slides += '<div class="logo">LOGWISE</div>';
+    slides += '<h1>' + title + '</h1>';
+    slides += '<div class="subtitle">Security Log Source Coverage Analysis</div>';
+    slides += '<div class="meta">';
+    slides += '<span>📅 ' + reportDate + '</span>';
+    slides += '<span>📊 ' + sources.length + ' Log Sources</span>';
+    slides += '<span>🎯 ' + metrics.coveragePercent + '% Coverage</span>';
+    slides += '</div></div>';
     
-    if (reportType === 'executive') {
-      // Key Metrics slide
-      slides += \`
-    <div class="slide">
-      <div class="slide-header">
-        <h2>Key Performance Indicators</h2>
-        <div class="subtitle">Overall security logging posture at a glance</div>
-      </div>
-      <div class="slide-content">
-        <div class="metrics-grid">
-          <div class="metric-card \${metrics.coveragePercent >= 80 ? 'green' : metrics.coveragePercent >= 50 ? 'yellow' : 'red'}">
-            <div class="value">\${metrics.coveragePercent}%</div>
-            <div class="label">Log Coverage</div>
-          </div>
-          <div class="metric-card \${metrics.maturityScore >= 80 ? 'green' : metrics.maturityScore >= 50 ? 'yellow' : 'red'}">
-            <div class="value">\${metrics.maturityScore}%</div>
-            <div class="label">Maturity Score</div>
-          </div>
-          <div class="metric-card \${metrics.detectionRate >= 80 ? 'green' : metrics.detectionRate >= 50 ? 'yellow' : 'red'}">
-            <div class="value">\${metrics.detectionRate}%</div>
-            <div class="label">Detection Rate</div>
-          </div>
-          <div class="metric-card blue">
-            <div class="value">\${metrics.collectedSources}/\${metrics.totalSources}</div>
-            <div class="label">Active Sources</div>
-          </div>
-        </div>
-        
-        <div class="two-columns">
-          <div>
-            <h3 style="font-size: 18px; margin-bottom: 16px; color: #e2e8f0;">Source Distribution</h3>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Count</th>
-                  <th>Percentage</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>Collected</td><td><span class="badge green">\${metrics.collectedSources}</span></td><td>\${metrics.totalSources > 0 ? Math.round((metrics.collectedSources / metrics.totalSources) * 100) : 0}%</td></tr>
-                <tr><td>Partial</td><td><span class="badge yellow">\${metrics.partialSources}</span></td><td>\${metrics.totalSources > 0 ? Math.round((metrics.partialSources / metrics.totalSources) * 100) : 0}%</td></tr>
-                <tr><td>Planned</td><td><span class="badge blue">\${metrics.plannedSources}</span></td><td>\${metrics.totalSources > 0 ? Math.round((metrics.plannedSources / metrics.totalSources) * 100) : 0}%</td></tr>
-                <tr><td>Not Collected</td><td><span class="badge gray">\${metrics.notCollectedSources}</span></td><td>\${metrics.totalSources > 0 ? Math.round((metrics.notCollectedSources / metrics.totalSources) * 100) : 0}%</td></tr>
-                <tr><td>Blocked</td><td><span class="badge red">\${metrics.blockedSources}</span></td><td>\${metrics.totalSources > 0 ? Math.round((metrics.blockedSources / metrics.totalSources) * 100) : 0}%</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div>
-            <h3 style="font-size: 18px; margin-bottom: 16px; color: #e2e8f0;">Coverage by Criticality</h3>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Tier</th>
-                  <th>Sources</th>
-                  <th>Coverage</th>
-                </tr>
-              </thead>
-              <tbody>
-                \${Object.entries(metrics.criticalityBreakdown).map(([key, data]) => \`
-                <tr>
-                  <td>\${data.label}</td>
-                  <td>\${data.collected}/\${data.total}</td>
-                  <td>
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                      <div class="progress-bar" style="flex: 1;">
-                        <div class="fill \${data.coverage >= 80 ? 'green' : data.coverage >= 50 ? 'yellow' : 'red'}" style="width: \${data.coverage}%;"></div>
-                      </div>
-                      <span style="min-width: 40px;">\${data.coverage}%</span>
-                    </div>
-                  </td>
-                </tr>\`).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div class="slide-footer">
-        <span class="brand">LOGWISE</span>
-        <span>\${reportDate}</span>
-      </div>
-    </div>\`;
-
-      // Assessment slide
-      slides += \`
-    <div class="slide">
-      <div class="slide-header">
-        <h2>Assessment Maturity Scores</h2>
-        <div class="subtitle">Logging capability assessment by category</div>
-      </div>
-      <div class="slide-content">
-        <div class="category-grid">
-          \${Object.entries(assessmentByCategory).map(([cat, data]) => {
-            const percent = data.maxScore > 0 ? Math.round((data.score / data.maxScore) * 100) : 0;
-            return \`
-          <div class="category-item">
-            <div class="name">\${cat}</div>
-            <div class="stats">\${data.answered} of \${data.questions.length} questions answered</div>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <div class="progress-bar" style="flex: 1;">
-                <div class="fill \${percent >= 80 ? 'green' : percent >= 50 ? 'yellow' : 'red'}" style="width: \${percent}%;"></div>
-              </div>
-              <span style="font-weight: 600; color: \${percent >= 80 ? '#10b981' : percent >= 50 ? '#f59e0b' : '#ef4444'};">\${percent}%</span>
-            </div>
-          </div>\`;
-          }).join('')}
-        </div>
-      </div>
-      <div class="slide-footer">
-        <span class="brand">LOGWISE</span>
-        <span>\${reportDate}</span>
-      </div>
-    </div>\`;
+    // Key metrics slide
+    slides += '<div class="slide">';
+    slides += '<div class="slide-header"><h2>Key Performance Indicators</h2>';
+    slides += '<div class="subtitle">Overall security logging posture at a glance</div></div>';
+    slides += '<div class="slide-content"><div class="metrics-grid">';
+    
+    const coverageColor = metrics.coveragePercent >= 80 ? 'green' : metrics.coveragePercent >= 50 ? 'yellow' : 'red';
+    slides += '<div class="metric-card ' + coverageColor + '">';
+    slides += '<div class="value">' + metrics.coveragePercent + '%</div>';
+    slides += '<div class="label">Log Coverage</div></div>';
+    
+    const maturityColor = metrics.maturityScore >= 80 ? 'green' : metrics.maturityScore >= 50 ? 'yellow' : 'red';
+    slides += '<div class="metric-card ' + maturityColor + '">';
+    slides += '<div class="value">' + metrics.maturityScore + '%</div>';
+    slides += '<div class="label">Maturity Score</div></div>';
+    
+    slides += '<div class="metric-card blue">';
+    slides += '<div class="value">' + sources.length + '</div>';
+    slides += '<div class="label">Total Sources</div></div>';
+    
+    slides += '<div class="metric-card purple">';
+    slides += '<div class="value">' + metrics.collectedSources + '</div>';
+    slides += '<div class="label">Collected</div></div>';
+    
+    slides += '</div></div>';
+    slides += '<div class="slide-footer"><div class="brand">Logwise</div><div>Generated: ' + reportDate + '</div></div>';
+    slides += '</div>';
+    
+    // Gap summary slide
+    if (gaps.sourceGaps.length > 0 || gaps.assessmentGaps.length > 0) {
+      slides += '<div class="slide">';
+      slides += '<div class="slide-header"><h2>Coverage Gaps Summary</h2>';
+      slides += '<div class="subtitle">Areas requiring attention</div></div>';
+      slides += '<div class="slide-content">';
+      
+      slides += '<div class="callout danger">';
+      slides += '<h4>⚠️ Key Gaps Identified</h4><ul>';
+      if (gaps.sourceGaps.length > 0) {
+        slides += '<li>' + gaps.sourceGaps.length + ' log sources not being collected</li>';
+      }
+      if (gaps.assessmentGaps.length > 0) {
+        slides += '<li>' + gaps.assessmentGaps.length + ' assessment questions need attention</li>';
+      }
+      const criticalGaps = gaps.sourceGaps.filter(s => s.criticalityTier === 'critical' || s.criticalityTier === 'high');
+      if (criticalGaps.length > 0) {
+        slides += '<li>' + criticalGaps.length + ' high/critical priority gaps</li>';
+      }
+      slides += '</ul></div>';
+      
+      slides += '</div>';
+      slides += '<div class="slide-footer"><div class="brand">Logwise</div><div>Generated: ' + reportDate + '</div></div>';
+      slides += '</div>';
     }
     
-    if (reportType === 'gap' || reportType === 'executive') {
-      // Gaps slide
-      slides += \`
-    <div class="slide">
-      <div class="slide-header">
-        <h2>Identified Gaps & Priorities</h2>
-        <div class="subtitle">Areas requiring immediate attention</div>
-      </div>
-      <div class="slide-content">
-        <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr);">
-          <div class="metric-card red">
-            <div class="value">\${gaps.sourceGaps.filter(s => s.status === 'blocked').length}</div>
-            <div class="label">Blocked Sources</div>
-          </div>
-          <div class="metric-card yellow">
-            <div class="value">\${gaps.sourceGaps.filter(s => s.status === 'not-collected').length}</div>
-            <div class="label">Not Collected</div>
-          </div>
-          <div class="metric-card blue">
-            <div class="value">\${gaps.sourceGaps.filter(s => s.status === 'planned').length}</div>
-            <div class="label">Planned</div>
-          </div>
-        </div>
-        
-        \${gaps.sourceGaps.filter(s => s.status === 'blocked').length > 0 ? \`
-        <div class="callout danger">
-          <h4>⚠️ Blocked Sources - Immediate Action Required</h4>
-          <ul>
-            \${gaps.sourceGaps.filter(s => s.status === 'blocked').slice(0, 5).map(s => \`<li>\${s.name} (\${s.category || 'Uncategorized'})</li>\`).join('')}
-            \${gaps.sourceGaps.filter(s => s.status === 'blocked').length > 5 ? \`<li>... and \${gaps.sourceGaps.filter(s => s.status === 'blocked').length - 5} more</li>\` : ''}
-          </ul>
-        </div>\` : ''}
-        
-        \${gaps.sourceGaps.filter(s => s.status === 'not-collected').length > 0 ? \`
-        <div class="callout">
-          <h4>📋 Not Collected - Pending Implementation</h4>
-          <ul>
-            \${gaps.sourceGaps.filter(s => s.status === 'not-collected').slice(0, 5).map(s => \`<li>\${s.name} (\${s.category || 'Uncategorized'})</li>\`).join('')}
-            \${gaps.sourceGaps.filter(s => s.status === 'not-collected').length > 5 ? \`<li>... and \${gaps.sourceGaps.filter(s => s.status === 'not-collected').length - 5} more</li>\` : ''}
-          </ul>
-        </div>\` : ''}
-      </div>
-      <div class="slide-footer">
-        <span class="brand">LOGWISE</span>
-        <span>\${reportDate}</span>
-      </div>
-    </div>\`;
-    }
-    
-    if (reportType === 'validation') {
-      // Validation results slide
-      slides += \`
-    <div class="slide">
-      <div class="slide-header">
-        <h2>Detection Validation Results</h2>
-        <div class="subtitle">MITRE ATT&CK technique coverage testing</div>
-      </div>
-      <div class="slide-content">
-        <div class="metrics-grid">
-          <div class="metric-card green">
-            <div class="value">\${metrics.passedTests}</div>
-            <div class="label">Passed Tests</div>
-          </div>
-          <div class="metric-card yellow">
-            <div class="value">\${metrics.partialTests}</div>
-            <div class="label">Partial (Log Only)</div>
-          </div>
-          <div class="metric-card red">
-            <div class="value">\${metrics.failedTests}</div>
-            <div class="label">Failed Tests</div>
-          </div>
-          <div class="metric-card gray">
-            <div class="value">\${metrics.notTestedCount}</div>
-            <div class="label">Not Tested</div>
-          </div>
-        </div>
-        
-        <div class="two-columns">
-          <div>
-            <h3 style="font-size: 18px; margin-bottom: 16px; color: #e2e8f0;">Overall Performance</h3>
-            <div class="metric-card purple" style="margin-bottom: 24px;">
-              <div class="value">\${metrics.detectionRate}%</div>
-              <div class="label">Detection Rate</div>
-            </div>
-            <div class="metric-card blue">
-              <div class="value">\${metrics.testCoverage}%</div>
-              <div class="label">Test Coverage</div>
-            </div>
-          </div>
-          <div>
-            <h3 style="font-size: 18px; margin-bottom: 16px; color: #e2e8f0;">Coverage by Tactic</h3>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Tactic</th>
-                  <th>Tested</th>
-                  <th>Passed</th>
-                </tr>
-              </thead>
-              <tbody>
-                \${Object.entries(metrics.tacticCategories).slice(0, 6).map(([tactic, data]) => \`
-                <tr>
-                  <td>\${tactic}</td>
-                  <td>\${data.tested}/\${data.total}</td>
-                  <td><span class="badge \${data.passed === data.tested && data.tested > 0 ? 'green' : data.passed > 0 ? 'yellow' : 'gray'}">\${data.passed}</span></td>
-                </tr>\`).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div class="slide-footer">
-        <span class="brand">LOGWISE</span>
-        <span>\${reportDate}</span>
-      </div>
-    </div>\`;
-    }
-    
-    if (reportType === 'coverage') {
-      // Category breakdown slide
-      slides += \`
-    <div class="slide">
-      <div class="slide-header">
-        <h2>Log Source Inventory</h2>
-        <div class="subtitle">Complete breakdown by category</div>
-      </div>
-      <div class="slide-content">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th>Total</th>
-              <th>Collected</th>
-              <th>Partial</th>
-              <th>Not Collected</th>
-              <th>Coverage</th>
-            </tr>
-          </thead>
-          <tbody>
-            \${Object.entries(metrics.categoryBreakdown).map(([cat, data]) => {
-              const coverage = data.total > 0 ? Math.round(((data.collected + data.partial * 0.5) / data.total) * 100) : 0;
-              return \`
-            <tr>
-              <td style="font-weight: 500;">\${cat}</td>
-              <td>\${data.total}</td>
-              <td><span class="badge green">\${data.collected}</span></td>
-              <td><span class="badge yellow">\${data.partial}</span></td>
-              <td><span class="badge gray">\${data.notCollected + data.blocked}</span></td>
-              <td>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <div class="progress-bar" style="flex: 1; min-width: 100px;">
-                    <div class="fill \${coverage >= 80 ? 'green' : coverage >= 50 ? 'yellow' : 'red'}" style="width: \${coverage}%;"></div>
-                  </div>
-                  <span>\${coverage}%</span>
-                </div>
-              </td>
-            </tr>\`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="slide-footer">
-        <span class="brand">LOGWISE</span>
-        <span>\${reportDate}</span>
-      </div>
-    </div>\`;
-    }
-    
-    // Thank you / Next Steps slide (always last)
-    slides += \`
-    <div class="slide title-slide">
-      <div class="logo">LOGWISE</div>
-      <h1>Questions?</h1>
-      <div class="subtitle">Security Log Source Coverage Analysis</div>
-      <div style="margin-top: 60px;">
-        <div class="callout success" style="display: inline-block; text-align: left;">
-          <h4>📧 Next Steps</h4>
-          <ul>
-            <li>Review identified gaps and prioritize remediation</li>
-            <li>Schedule follow-up for blocked source resolution</li>
-            <li>Plan validation testing for untested techniques</li>
-          </ul>
-        </div>
-      </div>
-    </div>\`;
+    // Questions/closing slide
+    slides += '<div class="slide title-slide">';
+    slides += '<h1>Questions?</h1>';
+    slides += '<div class="subtitle">Security Log Source Coverage Analysis</div>';
+    slides += '<div style="margin-top: 60px;">';
+    slides += '<div class="callout success" style="display: inline-block; text-align: left;">';
+    slides += '<h4>📧 Next Steps</h4><ul>';
+    slides += '<li>Review identified gaps and prioritize remediation</li>';
+    slides += '<li>Schedule follow-up for blocked source resolution</li>';
+    slides += '<li>Plan validation testing for untested techniques</li>';
+    slides += '</ul></div></div></div>';
     
     return slides;
+  }
+
+  // Helper function to build full presentation HTML
+  function buildPresentationHTML(title, slidesContent) {
+    let html = '<!DOCTYPE html><html lang="en"><head>';
+    html += '<meta charset="UTF-8">';
+    html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+    html += '<title>Logwise - ' + title + '</title>';
+    html += '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">';
+    html += '<style>PRESENTATION_STYLES_PLACEHOLDER</style>';
+    html += '</head><body><div class="presentation">';
+    html += slidesContent;
+    html += '</div></body></html>';
+    
+    // Inject actual styles
+    const styles = `
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #f8fafc; min-height: 100vh; }
+    .presentation { max-width: 1280px; margin: 0 auto; padding: 40px 20px; }
+    .slide { background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border-radius: 24px; padding: 60px; margin-bottom: 40px; min-height: 720px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); border: 1px solid rgba(148, 163, 184, 0.1); }
+    .slide::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #06b6d4, #8b5cf6, #ec4899); }
+    .slide.title-slide { justify-content: center; align-items: center; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+    .title-slide .logo { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; letter-spacing: 2px; }
+    .title-slide h1 { font-size: 56px; font-weight: 800; line-height: 1.1; margin-bottom: 24px; background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .title-slide .subtitle { font-size: 24px; color: #94a3b8; margin-bottom: 60px; }
+    .title-slide .meta { display: flex; gap: 40px; font-size: 14px; color: #64748b; }
+    .slide-header { margin-bottom: 40px; }
+    .slide-header h2 { font-size: 36px; font-weight: 700; margin-bottom: 8px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .slide-header .subtitle { font-size: 16px; color: #94a3b8; }
+    .slide-content { flex: 1; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 40px; }
+    .metric-card { background: rgba(30, 41, 59, 0.8); border-radius: 16px; padding: 32px; text-align: center; border: 1px solid rgba(148, 163, 184, 0.1); position: relative; overflow: hidden; }
+    .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .metric-card.green::before { background: linear-gradient(90deg, #10b981, #059669); }
+    .metric-card.yellow::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .metric-card.red::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .metric-card.blue::before { background: linear-gradient(90deg, #3b82f6, #6366f1); }
+    .metric-card.purple::before { background: linear-gradient(90deg, #8b5cf6, #a855f7); }
+    .metric-card .value { font-size: 48px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+    .metric-card.green .value { color: #10b981; }
+    .metric-card.yellow .value { color: #f59e0b; }
+    .metric-card.red .value { color: #ef4444; }
+    .metric-card.blue .value { color: #3b82f6; }
+    .metric-card.purple .value { color: #8b5cf6; }
+    .metric-card .label { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+    .callout { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .callout.danger { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+    .callout.success { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); }
+    .callout h4 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #f59e0b; }
+    .callout.danger h4 { color: #ef4444; }
+    .callout.success h4 { color: #10b981; }
+    .callout ul { list-style: none; padding: 0; }
+    .callout li { padding: 8px 0; padding-left: 20px; position: relative; color: #e2e8f0; font-size: 14px; }
+    .callout li::before { content: '→'; position: absolute; left: 0; color: #f59e0b; }
+    .callout.danger li::before { color: #ef4444; }
+    .callout.success li::before { color: #10b981; }
+    .slide-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 24px; border-top: 1px solid rgba(148, 163, 184, 0.1); margin-top: auto; font-size: 12px; color: #64748b; }
+    .slide-footer .brand { font-weight: 600; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    @media print { body { background: white; color: #1e293b; } .slide { break-after: page; box-shadow: none; border: 1px solid #e2e8f0; background: white; } }
+    @page { size: landscape; margin: 0.5in; }
+    `;
+    
+    return html.replace('PRESENTATION_STYLES_PLACEHOLDER', styles);
   }
 
   const reportTypes = [

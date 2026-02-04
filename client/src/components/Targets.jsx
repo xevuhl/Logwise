@@ -100,6 +100,18 @@ function Targets({ targets, sources, relationships, onCreate, onUpdate, onDelete
     return colors[status] || colors.planned;
   };
 
+  // Get source status dot color class (full class names for Tailwind)
+  const getSourceStatusDotClass = (status) => {
+    const colors = {
+      collected: 'bg-green-500',
+      partial: 'bg-yellow-500',
+      planned: 'bg-blue-500',
+      'not-collected': 'bg-gray-500',
+      blocked: 'bg-red-500',
+    };
+    return colors[status] || 'bg-gray-500';
+  };
+
   // Filter targets
   const filteredTargets = useMemo(() => {
     return targets.filter(target => {
@@ -115,18 +127,24 @@ function Targets({ targets, sources, relationships, onCreate, onUpdate, onDelete
     });
   }, [targets, search, typeFilter, statusFilter]);
 
-  // Calculate sources ingested per target
+  // Calculate sources ingested per target using relationships
   const sourcesPerTarget = useMemo(() => {
     const map = {};
     targets.forEach(target => {
-      // Count sources that have this target as their ingestion destination
-      const ingestedSources = sources.filter(s => s.targetId === target.id);
+      // Find relationships where this target is the destination
+      const targetRelationships = (relationships || []).filter(r => 
+        r.targetType === 'target' && r.targetId === target.id && r.sourceType === 'source'
+      );
+      // Get the actual source objects that feed into this target
+      const ingestedSources = targetRelationships
+        .map(r => sources.find(s => s.id === r.sourceId))
+        .filter(Boolean);
       map[target.id] = ingestedSources;
     });
     return map;
-  }, [targets, sources]);
+  }, [targets, sources, relationships]);
 
-  // Calculate relationships to each target
+  // Calculate all relationships to each target (including target-to-target)
   const relationshipsPerTarget = useMemo(() => {
     const map = {};
     targets.forEach(target => {
@@ -364,7 +382,7 @@ function Targets({ targets, sources, relationships, onCreate, onUpdate, onDelete
                         <div className="space-y-1.5">
                           {ingestedSources.map(source => (
                             <div key={source.id} className="flex items-center gap-2 text-sm">
-                              <div className={`w-2 h-2 rounded-full bg-${getStatusColor(source.status)}-500`} />
+                              <div className={`w-2 h-2 rounded-full ${getSourceStatusDotClass(source.status)}`} />
                               <span className="text-gray-900 dark:text-white">{source.name}</span>
                               <span className="text-gray-500 dark:text-gray-400 text-xs">({source.category})</span>
                             </div>

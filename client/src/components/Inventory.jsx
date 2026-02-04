@@ -656,13 +656,6 @@ function SourceRow({ source, isExpanded, isEditing, isSelected, onToggleSelect, 
                 </div>
               )}
 
-              {/* JSON Mapping Schema */}
-              {source.jsonMappingSchema && (
-                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800">
-                  <div className="text-[10px] font-medium text-purple-700 dark:text-purple-400 uppercase tracking-wider mb-1.5">JSON Mapping Schema</div>
-                  <pre className="text-xs text-gray-900 dark:text-white font-mono bg-purple-100 dark:bg-purple-900/30 p-2 rounded overflow-x-auto">{source.jsonMappingSchema}</pre>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -678,7 +671,6 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
     { id: 'basic', label: 'Basic Info' },
     { id: 'ownership', label: 'Ownership' },
     { id: 'technical', label: 'Technical' },
-    { id: 'collection', label: 'Collection' },
     { id: 'validation', label: 'Validation' },
   ];
 
@@ -898,28 +890,6 @@ function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategori
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Collection Configuration Section */}
-      {activeSection === 'collection' && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800 space-y-4">
-            <div className="text-sm font-medium text-purple-700 dark:text-purple-400 flex items-center gap-2">
-              <Layers className="h-4 w-4" />
-              JSON Mapping Schema
-            </div>
-            <textarea
-              value={formData.jsonMappingSchema || ''}
-              onChange={(e) => setFormData({ ...formData, jsonMappingSchema: e.target.value })}
-              rows={6}
-              placeholder='e.g., { "timestamp": "@timestamp", "source_ip": "src_addr", "dest_ip": "dst_addr" }'
-              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
-            />
-            <p className="text-xs text-purple-600 dark:text-purple-400">
-              Define field mappings to normalize log fields to your standard schema
-            </p>
           </div>
         </div>
       )}
