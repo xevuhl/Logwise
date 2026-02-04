@@ -1,11 +1,23 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import https from 'https';
 import { fileURLToPath } from 'url';
+import { config } from 'dotenv';
 import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables from .env file
+config({ path: path.join(__dirname, '..', '.env') });
+
+// SSL Configuration for corporate environments with SSL inspection
+// Set SKIP_SSL_VERIFY=true in .env if you have certificate issues due to corporate proxy
+if (process.env.SKIP_SSL_VERIFY === 'true') {
+  console.warn('⚠️  SSL certificate verification is disabled (SKIP_SSL_VERIFY=true)');
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -903,8 +915,11 @@ async function testCriblConnection(integration) {
   try {
     // First, get the bearer token
     const token = await getCriblBearerToken(integration);
+    console.log('[Cribl] OAuth token obtained successfully');
     
     const url = `${baseUrl}/api/v1/system/info`;
+    console.log('[Cribl] Testing connection to:', url);
+    
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -912,8 +927,22 @@ async function testCriblConnection(integration) {
       }
     });
     
+    console.log('[Cribl] Response status:', response.status, response.statusText);
+    const contentType = response.headers.get('content-type') || '';
+    
     if (!response.ok) {
       const text = await response.text();
+      console.log('[Cribl] Error response:', text.substring(0, 200));
+      
+      // Check if we got HTML instead of JSON (wrong URL)
+      if (text.includes('<!doctype') || text.includes('<html')) {
+        return { 
+          success: false, 
+          message: `Invalid Cribl URL - received HTML instead of API response. Check your base URL format.`,
+          details: `URL tested: ${url}\nExpected format for Cloud: https://main-{orgId}.cribl.cloud`
+        };
+      }
+      
       return { 
         success: false, 
         message: `Connection failed: ${response.status} ${response.statusText}`,
@@ -921,7 +950,19 @@ async function testCriblConnection(integration) {
       };
     }
     
+    // Check content type before parsing JSON
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      console.log('[Cribl] Non-JSON response:', text.substring(0, 200));
+      return {
+        success: false,
+        message: `Invalid response type: ${contentType}. The URL may be incorrect.`,
+        details: `URL tested: ${url}`
+      };
+    }
+    
     const data = await response.json();
+    console.log('[Cribl] Connection successful, version:', data.version);
     return { 
       success: true, 
       message: 'Connection successful',
@@ -929,6 +970,7 @@ async function testCriblConnection(integration) {
       build: data.build
     };
   } catch (error) {
+    console.log('[Cribl] Connection error:', error.message);
     return { 
       success: false, 
       message: `Connection failed: ${error.message}` 
@@ -943,9 +985,10 @@ async function fetchCriblSources(integration) {
     // Get bearer token
     const token = await getCriblBearerToken(integration);
     
-    // Fetch inputs (sources) from Cribl
+    // Fetch destinations (outputs) from Cribl
     const groupPath = workerGroup ? `/m/${workerGroup}` : '';
-    const url = `${baseUrl}/api/v1${groupPath}/system/inputs`;
+    const url = `${baseUrl}/api/v1${groupPath}/system/outputs`;
+    console.log('[Cribl] Fetching destinations from:', url);
     
     const response = await fetch(url, {
       headers: {
@@ -955,21 +998,23 @@ async function fetchCriblSources(integration) {
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch sources: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch destinations: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    const criblSources = data.items || [];
+    const criblDestinations = data.items || [];
+    console.log('[Cribl] Found', criblDestinations.length, 'destinations');
     
-    // Map Cribl sources to Logwise format
-    const mappedSources = criblSources.map(criblSource => mapCriblToLogwise(criblSource, integration));
+    // Map Cribl destinations to Logwise format
+    const mappedSources = criblDestinations.map(dest => mapCriblDestinationToLogwise(dest, integration));
     
     return {
       success: true,
       sources: mappedSources,
-      raw: criblSources
+      raw: criblDestinations
     };
   } catch (error) {
+    console.log('[Cribl] Fetch error:', error.message);
     return {
       success: false,
       message: error.message,
@@ -1113,6 +1158,64 @@ function mapCriblToLogwise(criblSource, integration) {
     retention: '90d',
     notes: `Auto-imported from Cribl integration "${integration.name}". Original type: ${inputType}`,
     tags: ['cribl-import', inputType]
+  };
+}
+
+function mapCriblDestinationToLogwise(destination, integration) {
+  // Map Cribl output type to Logwise category
+  const typeToCategory = {
+    'splunk': 'SIEM',
+    'splunk_hec': 'SIEM',
+    'splunk_lb': 'SIEM',
+    'elastic': 'SIEM',
+    'chronicle': 'SIEM',
+    'sentinel': 'SIEM',
+    'qradar': 'SIEM',
+    's3': 'Cloud Storage',
+    'azure_blob': 'Cloud Storage',
+    'gcs': 'Cloud Storage',
+    'minio': 'Cloud Storage',
+    'kafka': 'Streaming',
+    'kinesis': 'Streaming',
+    'azure_event_hub': 'Streaming',
+    'gcp_pubsub': 'Streaming',
+    'sqs': 'Streaming',
+    'syslog': 'Network',
+    'tcp': 'Network',
+    'http': 'Application',
+    'webhook': 'Application',
+    'statsd': 'Metrics',
+    'graphite': 'Metrics',
+    'prometheus': 'Metrics',
+    'influxdb': 'Metrics',
+    'datadog': 'Observability',
+    'honeycomb': 'Observability',
+    'newrelic': 'Observability',
+    'sumo': 'SIEM',
+    'snowflake': 'Data Lake',
+    'databricks': 'Data Lake',
+    'devnull': 'Other',
+    'default': 'Other'
+  };
+  
+  const outputType = destination.type || 'unknown';
+  const isEnabled = !destination.disabled;
+  
+  return {
+    name: destination.id || destination.name || 'Unknown Destination',
+    description: destination.description || `Cribl destination (${outputType})`,
+    category: typeToCategory[outputType] || 'Application',
+    logType: 'json',
+    status: isEnabled ? 'collected' : 'not-collected',
+    criblId: destination.id,
+    criblType: outputType,
+    integrationId: integration.id,
+    ownerTeam: '',
+    ownerContact: '',
+    criticalityTier: 'tier-2',
+    retention: '90d',
+    notes: `Cribl destination from "${integration.name}". Type: ${outputType}. ${destination.description || ''}`.trim(),
+    tags: ['cribl-destination', outputType, isEnabled ? 'enabled' : 'disabled']
   };
 }
 

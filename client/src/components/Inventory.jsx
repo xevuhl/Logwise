@@ -37,6 +37,8 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Calculate stats for summary cards
   const stats = useMemo(() => {
@@ -106,6 +108,43 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   // Get unique categories from sources
   const usedCategories = [...new Set(sources.map(s => s.category).filter(Boolean))];
   const allCategories = [...new Set([...categoryOptions, ...usedCategories])].sort();
+
+  // Selection helpers
+  const allFilteredSelected = filteredSources.length > 0 && filteredSources.every(s => selectedIds.has(s.id));
+  const someFilteredSelected = filteredSources.some(s => selectedIds.has(s.id));
+  
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      // Deselect all filtered
+      const newSelected = new Set(selectedIds);
+      filteredSources.forEach(s => newSelected.delete(s.id));
+      setSelectedIds(newSelected);
+    } else {
+      // Select all filtered
+      const newSelected = new Set(selectedIds);
+      filteredSources.forEach(s => newSelected.add(s.id));
+      setSelectedIds(newSelected);
+    }
+  };
+  
+  const toggleSelect = (id) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+  
+  const handleBulkDelete = async () => {
+    const idsToDelete = [...selectedIds];
+    for (const id of idsToDelete) {
+      await onDelete(id);
+    }
+    setSelectedIds(new Set());
+    setShowBulkDeleteConfirm(false);
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -255,8 +294,22 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       <div className="flex items-center justify-between">
         <div className="text-xs text-gray-600 dark:text-gray-400">
           Showing {filteredSources.length} of {sources.length} sources
+          {selectedIds.size > 0 && (
+            <span className="ml-2 text-purple-600 dark:text-purple-400 font-medium">
+              ({selectedIds.size} selected)
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-[10px] font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete {selectedIds.size} selected
+            </button>
+          )}
           {stats.blocked > 0 && (
             <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-[10px] font-medium">
               <XCircle className="h-3 w-3" />
@@ -280,6 +333,36 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
 
       {/* Sources list */}
       <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* Select All Header */}
+        {filteredSources.length > 0 && (
+          <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              ref={el => {
+                if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected;
+              }}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
+            />
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              {allFilteredSelected 
+                ? `All ${filteredSources.length} sources selected` 
+                : someFilteredSelected 
+                  ? `${selectedIds.size} selected`
+                  : 'Select all'}
+            </span>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                Clear selection
+              </button>
+            )}
+          </div>
+        )}
+        
         {filteredSources.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-gray-400 dark:text-gray-500 mb-2 text-sm">No sources found</div>
@@ -302,6 +385,8 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
                   source={source}
                   isExpanded={expandedId === source.id}
                   isEditing={editingId === source.id}
+                  isSelected={selectedIds.has(source.id)}
+                  onToggleSelect={() => toggleSelect(source.id)}
                   onToggle={() => setExpandedId(expandedId === source.id ? null : source.id)}
                   onEdit={() => setEditingId(source.id)}
                   onCancelEdit={() => setEditingId(null)}
@@ -334,6 +419,15 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         />
       )}
 
+      {/* Bulk Delete Confirmation */}
+      {showBulkDeleteConfirm && (
+        <BulkDeleteConfirmModal
+          count={selectedIds.size}
+          onClose={() => setShowBulkDeleteConfirm(false)}
+          onConfirm={handleBulkDelete}
+        />
+      )}
+
       {/* Delete Confirmation */}
       {deleteConfirm && (
         <DeleteConfirmModal
@@ -349,7 +443,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   );
 }
 
-function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEdit, onUpdate, onDelete, allCategories, target, relationshipCount }) {
+function SourceRow({ source, isExpanded, isEditing, isSelected, onToggleSelect, onToggle, onEdit, onCancelEdit, onUpdate, onDelete, allCategories, target, relationshipCount }) {
   const [formData, setFormData] = useState(source);
   const [saving, setSaving] = useState(false);
 
@@ -364,9 +458,17 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
   };
 
   return (
-    <div className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+    <div className={`transition-colors ${isSelected ? 'bg-purple-50 dark:bg-purple-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'}`}>
       {/* Main row */}
       <div className="px-4 py-2.5 flex items-center gap-3">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggleSelect}
+          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+        />
+        
         <button onClick={onToggle} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
           {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
@@ -444,7 +546,7 @@ function SourceRow({ source, isExpanded, isEditing, onToggle, onEdit, onCancelEd
 
       {/* Expanded details */}
       {isExpanded && (
-        <div className="px-4 pb-3 pl-11 border-t border-gray-100 dark:border-gray-700 pt-3">
+        <div className="px-4 pb-3 pl-14 border-t border-gray-100 dark:border-gray-700 pt-3">
           {isEditing ? (
             <EditForm
               formData={formData}
@@ -1219,6 +1321,50 @@ function DeleteConfirmModal({ source, onClose, onConfirm }) {
             className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 transition-colors"
           >
             {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function BulkDeleteConfirmModal({ count, onClose, onConfirm }) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    await onConfirm();
+  };
+
+  return (
+    <Modal onClose={onClose} title="Delete Multiple Sources">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-6 w-6 text-red-500 flex-shrink-0" />
+          <div>
+            <p className="text-gray-900 dark:text-white">
+              Are you sure you want to delete <strong>{count} sources</strong>?
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              This action cannot be undone. All selected sources will be permanently removed.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex justify-end gap-2 pt-4">
+          <button
+            onClick={onClose}
+            disabled={deleting}
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 transition-colors"
+          >
+            {deleting ? `Deleting ${count}...` : `Delete ${count} Sources`}
           </button>
         </div>
       </div>
