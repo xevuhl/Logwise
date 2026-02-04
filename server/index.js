@@ -525,15 +525,25 @@ app.delete('/api/targets/:id', (req, res) => {
 
 // ============ INTEGRATIONS API ============
 
+// Helper to sanitize integration response - removes all sensitive fields
+function sanitizeIntegration(integration) {
+  const sensitiveFields = ['bearerToken', 'clientId', 'clientSecret', 'username', 'password', 'apiToken'];
+  const sanitized = { ...integration };
+  for (const field of sensitiveFields) {
+    if (sanitized[field]) {
+      delete sanitized[field];
+      sanitized[`has${field.charAt(0).toUpperCase() + field.slice(1)}`] = true;
+    }
+  }
+  return sanitized;
+}
+
 // Get all integrations
 app.get('/api/integrations', (req, res) => {
   try {
     const allIntegrations = integrations.getAll();
     // Remove sensitive data from response
-    const sanitized = allIntegrations.map(({ apiToken, ...rest }) => ({
-      ...rest,
-      hasToken: !!apiToken
-    }));
+    const sanitized = allIntegrations.map(sanitizeIntegration);
     res.json(sanitized);
   } catch (error) {
     console.error('Error fetching integrations:', error);
@@ -549,8 +559,7 @@ app.get('/api/integrations/:id', (req, res) => {
       return res.status(404).json({ error: 'Integration not found' });
     }
     // Remove sensitive data
-    const { apiToken, ...sanitized } = integration;
-    res.json({ ...sanitized, hasToken: !!apiToken });
+    res.json(sanitizeIntegration(integration));
   } catch (error) {
     console.error('Error fetching integration:', error);
     res.status(500).json({ error: 'Failed to fetch integration' });
@@ -563,8 +572,7 @@ app.post('/api/integrations', (req, res) => {
     const newIntegration = integrations.create(req.body);
     auditLog.add('integration_created', `${req.body.type}: ${req.body.name}`);
     // Remove sensitive data from response
-    const { apiToken, ...sanitized } = newIntegration;
-    res.status(201).json({ ...sanitized, hasToken: !!apiToken });
+    res.status(201).json(sanitizeIntegration(newIntegration));
   } catch (error) {
     console.error('Error creating integration:', error);
     res.status(500).json({ error: 'Failed to create integration' });
@@ -579,17 +587,29 @@ app.put('/api/integrations/:id', (req, res) => {
       return res.status(404).json({ error: 'Integration not found' });
     }
     
-    // If no new token provided, keep the existing one
+    // If no new credentials provided, keep the existing ones
     const updates = { ...req.body };
-    if (!updates.apiToken && existing.apiToken) {
-      updates.apiToken = existing.apiToken;
+    
+    // Preserve existing sensitive fields if not provided in update
+    const sensitiveFields = ['bearerToken', 'clientId', 'clientSecret', 'username', 'password', 'apiToken'];
+    for (const field of sensitiveFields) {
+      if (!updates[field] && existing[field]) {
+        updates[field] = existing[field];
+      }
     }
     
     const updated = integrations.update(req.params.id, updates);
     auditLog.add('integration_updated', `${updated.type}: ${updated.name}`);
     
-    const { apiToken, ...sanitized } = updated;
-    res.json({ ...sanitized, hasToken: !!apiToken });
+    // Sanitize response - remove all sensitive fields
+    const sanitized = { ...updated };
+    for (const field of sensitiveFields) {
+      if (sanitized[field]) {
+        delete sanitized[field];
+        sanitized[`has${field.charAt(0).toUpperCase() + field.slice(1)}`] = true;
+      }
+    }
+    res.json(sanitized);
   } catch (error) {
     console.error('Error updating integration:', error);
     res.status(500).json({ error: 'Failed to update integration' });
@@ -761,14 +781,133 @@ app.post('/api/integrations/:id/preview', async (req, res) => {
 
 // ============ CRIBL INTEGRATION HELPERS ============
 
+// Cache for OAuth tokens (in production, use Redis or similar)
+const tokenCache = new Map();
+
+/**
+ * Get a Bearer token for Cribl API authentication
+ * Supports three auth types:
+ * - bearer: User provides an existing Bearer token directly
+ * - oauth: OAuth Client Credentials flow for Cribl.Cloud/Hybrid
+ * - basic: Username/password for On-prem deployments
+ */
+async function getCriblBearerToken(integration) {
+  const { authType = 'bearer', baseUrl, bearerToken, clientId, clientSecret, username, password } = integration;
+  
+  // If using direct bearer token, return it
+  if (authType === 'bearer') {
+    if (!bearerToken) {
+      throw new Error('Bearer token is required');
+    }
+    return bearerToken;
+  }
+  
+  // Check cache for OAuth tokens
+  const cacheKey = `${integration.id}-${authType}`;
+  const cached = tokenCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.token;
+  }
+  
+  // OAuth Client Credentials flow for Cloud/Hybrid
+  if (authType === 'oauth') {
+    if (!clientId || !clientSecret) {
+      throw new Error('Client ID and Client Secret are required for OAuth authentication');
+    }
+    
+    try {
+      const response = await fetch('https://login.cribl.cloud/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          grant_type: 'client_credentials',
+          client_id: clientId,
+          client_secret: clientSecret,
+          audience: 'https://api.cribl.cloud'
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `OAuth authentication failed: ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error_description || errorJson.error || errorMessage;
+        } catch (e) {
+          // Use the text if not JSON
+          if (errorText) errorMessage += ` - ${errorText}`;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      const token = data.access_token;
+      const expiresIn = data.expires_in || 86400; // Default 24 hours
+      
+      // Cache the token (expire 5 minutes early to be safe)
+      tokenCache.set(cacheKey, {
+        token,
+        expiresAt: Date.now() + (expiresIn - 300) * 1000
+      });
+      
+      return token;
+    } catch (error) {
+      throw new Error(`OAuth authentication failed: ${error.message}`);
+    }
+  }
+  
+  // Username/password auth for On-prem
+  if (authType === 'basic') {
+    if (!username || !password) {
+      throw new Error('Username and password are required for basic authentication');
+    }
+    
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Login failed: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      const token = data.token;
+      
+      // Cache the token (on-prem default is 1 hour, but can be configured)
+      // We'll cache for 50 minutes to be safe
+      tokenCache.set(cacheKey, {
+        token,
+        expiresAt: Date.now() + 50 * 60 * 1000
+      });
+      
+      return token;
+    } catch (error) {
+      throw new Error(`Login authentication failed: ${error.message}`);
+    }
+  }
+  
+  throw new Error(`Unknown authentication type: ${authType}`);
+}
+
 async function testCriblConnection(integration) {
-  const { baseUrl, apiToken, workerGroup } = integration;
+  const { baseUrl, workerGroup } = integration;
   
   try {
+    // First, get the bearer token
+    const token = await getCriblBearerToken(integration);
+    
     const url = `${baseUrl}/api/v1/system/info`;
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });
@@ -798,16 +937,19 @@ async function testCriblConnection(integration) {
 }
 
 async function fetchCriblSources(integration) {
-  const { baseUrl, apiToken, workerGroup } = integration;
+  const { baseUrl, workerGroup } = integration;
   
   try {
+    // Get bearer token
+    const token = await getCriblBearerToken(integration);
+    
     // Fetch inputs (sources) from Cribl
     const groupPath = workerGroup ? `/m/${workerGroup}` : '';
     const url = `${baseUrl}/api/v1${groupPath}/system/inputs`;
     
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });

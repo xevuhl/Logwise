@@ -2898,11 +2898,20 @@ export const integrationTypes = [
     icon: 'Layers',
     color: 'purple',
     configFields: [
-      { id: 'baseUrl', label: 'Cribl URL', type: 'url', placeholder: 'https://your-cribl-instance.cribl.cloud', required: true },
-      { id: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Enter your Cribl API token', required: true },
+      { id: 'baseUrl', label: 'Cribl URL', type: 'url', placeholder: 'https://workspace-orgid.cribl.cloud or https://your-host:9000', required: true },
+      { id: 'authType', label: 'Authentication Type', type: 'select', options: [
+        { value: 'bearer', label: 'Bearer Token (On-prem with existing token)' },
+        { value: 'oauth', label: 'OAuth Client Credentials (Cloud/Hybrid)' },
+        { value: 'basic', label: 'Username & Password (On-prem)' },
+      ], required: true, default: 'bearer' },
+      { id: 'bearerToken', label: 'Bearer Token', type: 'password', placeholder: 'Your existing Bearer token', required: false, showWhen: { authType: 'bearer' } },
+      { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'API credential Client ID', required: false, showWhen: { authType: 'oauth' } },
+      { id: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'API credential Client Secret', required: false, showWhen: { authType: 'oauth' } },
+      { id: 'username', label: 'Username', type: 'text', placeholder: 'Cribl username', required: false, showWhen: { authType: 'basic' } },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Cribl password', required: false, showWhen: { authType: 'basic' } },
       { id: 'workerGroup', label: 'Worker Group', type: 'text', placeholder: 'default (leave empty for leader)', required: false },
     ],
-    docUrl: 'https://docs.cribl.io/stream/api-reference/',
+    docUrl: 'https://docs.cribl.io/cribl-as-code/api-auth/',
   },
   {
     id: 'adx',

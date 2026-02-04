@@ -452,7 +452,7 @@ function IntegrationModal({ integration, preselectedType, onClose, onSave }) {
   const [formData, setFormData] = useState({
     name: integration?.name || '',
     baseUrl: integration?.baseUrl || '',
-    apiToken: '',
+    authType: integration?.authType || 'bearer',
     workerGroup: integration?.workerGroup || '',
     ...integration
   });
@@ -466,9 +466,21 @@ function IntegrationModal({ integration, preselectedType, onClose, onSave }) {
       return;
     }
     
-    if (!integration && !formData.apiToken) {
-      alert('API token is required');
-      return;
+    // Validate authentication fields based on auth type (for Cribl)
+    if (selectedType === 'cribl' && !integration) {
+      const authType = formData.authType || 'bearer';
+      if (authType === 'bearer' && !formData.bearerToken) {
+        alert('Bearer token is required');
+        return;
+      }
+      if (authType === 'oauth' && (!formData.clientId || !formData.clientSecret)) {
+        alert('Client ID and Client Secret are required for OAuth');
+        return;
+      }
+      if (authType === 'basic' && (!formData.username || !formData.password)) {
+        alert('Username and password are required');
+        return;
+      }
     }
 
     setSaving(true);
@@ -547,25 +559,57 @@ function IntegrationModal({ integration, preselectedType, onClose, onSave }) {
               </div>
 
               {/* Dynamic fields from type config */}
-              {typeConfig?.configFields.map(field => (
-                <div key={field.id} className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {field.label} {field.required && <span className="text-red-500">*</span>}
-                  </label>
-                  <input
-                    type={field.type === 'password' ? 'password' : 'text'}
-                    placeholder={field.placeholder}
-                    value={formData[field.id] || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
-                  />
-                  {field.id === 'apiToken' && integration && (
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      Leave empty to keep existing token
-                    </p>
-                  )}
-                </div>
-              ))}
+              {typeConfig?.configFields.map(field => {
+                // Check if field should be shown based on showWhen condition
+                if (field.showWhen) {
+                  const conditionField = Object.keys(field.showWhen)[0];
+                  const conditionValue = field.showWhen[conditionField];
+                  if (formData[conditionField] !== conditionValue) {
+                    return null;
+                  }
+                }
+                
+                // Set default value if not already set
+                if (field.default && formData[field.id] === undefined) {
+                  setFormData(prev => ({ ...prev, [field.id]: field.default }));
+                }
+                
+                return (
+                  <div key={field.id} className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {field.label} {field.required && <span className="text-red-500">*</span>}
+                    </label>
+                    
+                    {field.type === 'select' ? (
+                      <select
+                        value={formData[field.id] || field.default || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                        className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+                      >
+                        <option value="">Select...</option>
+                        {field.options.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type === 'password' ? 'password' : 'text'}
+                        placeholder={field.placeholder}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                        className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    )}
+                    
+                    {/* Help text for sensitive fields when editing */}
+                    {(field.id === 'bearerToken' || field.id === 'clientSecret' || field.id === 'password') && integration && (
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                        Leave empty to keep existing credentials
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Documentation link */}
               {typeConfig?.docUrl && (
