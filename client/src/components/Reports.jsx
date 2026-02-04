@@ -34,7 +34,7 @@ import {
 } from '../constants';
 
 function Reports({ sources, assessments, validationTests }) {
-  const [activeReport, setActiveReport] = useState('executive');
+  const [activeReport, setActiveReport] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
   const [showReportPreview, setShowReportPreview] = useState(false);
 
@@ -290,16 +290,65 @@ function Reports({ sources, assessments, validationTests }) {
   };
 
   const reportTypes = [
-    { id: 'executive', label: 'Executive Summary', icon: Building2 },
-    { id: 'validation', label: 'Detection Validation', icon: Crosshair },
-    { id: 'gap', label: 'Gap Analysis', icon: AlertTriangle },
-    { id: 'coverage', label: 'Inventory Report', icon: Database }
+    { 
+      id: 'executive', 
+      label: 'Executive Summary', 
+      icon: Building2,
+      description: 'High-level overview of security posture, key metrics, and strategic recommendations',
+      color: 'blue'
+    },
+    { 
+      id: 'validation', 
+      label: 'Detection Validation', 
+      icon: Crosshair,
+      description: 'MITRE ATT&CK detection test results and coverage by tactic',
+      color: 'purple'
+    },
+    { 
+      id: 'gap', 
+      label: 'Gap Analysis', 
+      icon: AlertTriangle,
+      description: 'Identified coverage gaps, missing sources, and remediation priorities',
+      color: 'orange'
+    },
+    { 
+      id: 'coverage', 
+      label: 'Inventory Report', 
+      icon: Database,
+      description: 'Complete log source inventory with status and category breakdown',
+      color: 'green'
+    }
   ];
 
   const getReportTitle = () => {
     const type = reportTypes.find(r => r.id === activeReport);
     return type?.label || 'Report';
   };
+
+  // If no report is selected, show the tile selection view
+  if (!activeReport) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        {/* Header */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reports</h2>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Select a report to generate comprehensive security coverage insights</p>
+        </div>
+
+        {/* Report Tiles */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {reportTypes.map(type => (
+            <ReportTile 
+              key={type.id}
+              report={type}
+              metrics={metrics}
+              onClick={() => setActiveReport(type.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -318,11 +367,29 @@ function Reports({ sources, assessments, validationTests }) {
         />
       )}
 
-      {/* Header */}
+      {/* Header with back button */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reports</h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">Generate comprehensive security coverage reports</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveReport(null)}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+          >
+            <ChevronRight className="h-4 w-4 rotate-180" />
+            Back
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              {(() => {
+                const type = reportTypes.find(r => r.id === activeReport);
+                const Icon = type?.icon || FileText;
+                return <Icon className="h-5 w-5 text-primary-500" />;
+              })()}
+              {getReportTitle()}
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {reportTypes.find(r => r.id === activeReport)?.description}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button
@@ -349,24 +416,6 @@ function Reports({ sources, assessments, validationTests }) {
             JSON
           </button>
         </div>
-      </div>
-
-      {/* Report Type Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 print:hidden">
-        {reportTypes.map(type => (
-          <button
-            key={type.id}
-            onClick={() => setActiveReport(type.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeReport === type.id
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            <type.icon className="h-4 w-4" />
-            {type.label}
-          </button>
-        ))}
       </div>
 
       {/* Report Content */}
@@ -413,6 +462,89 @@ function Reports({ sources, assessments, validationTests }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Report Tile Component
+function ReportTile({ report, metrics, onClick }) {
+  const Icon = report.icon;
+  
+  const colorClasses = {
+    blue: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      border: 'border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600',
+      icon: 'text-blue-500',
+      badge: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+    },
+    purple: {
+      bg: 'bg-purple-50 dark:bg-purple-900/20',
+      border: 'border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600',
+      icon: 'text-purple-500',
+      badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400'
+    },
+    orange: {
+      bg: 'bg-orange-50 dark:bg-orange-900/20',
+      border: 'border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600',
+      icon: 'text-orange-500',
+      badge: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400'
+    },
+    green: {
+      bg: 'bg-green-50 dark:bg-green-900/20',
+      border: 'border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600',
+      icon: 'text-green-500',
+      badge: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
+    }
+  };
+
+  const colors = colorClasses[report.color] || colorClasses.blue;
+
+  // Get a preview metric for each report type
+  const getPreviewMetric = () => {
+    switch (report.id) {
+      case 'executive':
+        return { label: 'Overall Coverage', value: `${metrics.coveragePercent}%` };
+      case 'validation':
+        return { label: 'Detection Rate', value: `${metrics.detectionRate}%` };
+      case 'gap':
+        return { label: 'Open Gaps', value: metrics.notCollectedSources + metrics.blockedSources };
+      case 'coverage':
+        return { label: 'Total Sources', value: metrics.totalSources };
+      default:
+        return null;
+    }
+  };
+
+  const previewMetric = getPreviewMetric();
+
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative p-5 rounded-lg border-2 ${colors.border} ${colors.bg} text-left transition-all hover:shadow-md`}
+    >
+      <div className="flex items-start justify-between">
+        <div className={`p-2.5 rounded-lg ${colors.bg} border ${colors.border.split(' ')[0]}`}>
+          <Icon className={`h-6 w-6 ${colors.icon}`} />
+        </div>
+        {previewMetric && (
+          <span className={`px-2 py-1 rounded text-xs font-medium ${colors.badge}`}>
+            {previewMetric.label}: {previewMetric.value}
+          </span>
+        )}
+      </div>
+      
+      <h3 className="mt-4 text-base font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+        {report.label}
+      </h3>
+      
+      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+        {report.description}
+      </p>
+      
+      <div className="mt-4 flex items-center text-xs font-medium text-primary-600 dark:text-primary-400 group-hover:translate-x-1 transition-transform">
+        View Report
+        <ChevronRight className="h-4 w-4 ml-1" />
+      </div>
+    </button>
   );
 }
 
@@ -1771,6 +1903,289 @@ function ReportPreviewModal({
 
         {/* Report Preview */}
         <div className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-gray-900">
+          {/* Inline styles for preview */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            .report-container {
+              max-width: 850px;
+              margin: 0 auto;
+              background: white;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.6;
+              color: #1e293b;
+            }
+            .report-header {
+              background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+              color: white;
+              padding: 40px;
+              position: relative;
+              overflow: hidden;
+            }
+            .report-header::before {
+              content: '';
+              position: absolute;
+              top: -50%;
+              right: -20%;
+              width: 400px;
+              height: 400px;
+              background: rgba(255,255,255,0.1);
+              border-radius: 50%;
+            }
+            .report-header h1 {
+              font-size: 32px;
+              font-weight: 700;
+              margin-bottom: 8px;
+              position: relative;
+              z-index: 1;
+            }
+            .report-header .subtitle {
+              font-size: 18px;
+              opacity: 0.9;
+              font-weight: 500;
+              position: relative;
+              z-index: 1;
+            }
+            .report-header .meta {
+              margin-top: 20px;
+              padding-top: 20px;
+              border-top: 1px solid rgba(255,255,255,0.2);
+              display: flex;
+              gap: 30px;
+              font-size: 13px;
+              opacity: 0.85;
+              position: relative;
+              z-index: 1;
+            }
+            .report-body {
+              padding: 40px;
+            }
+            .section {
+              margin-bottom: 35px;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: 600;
+              color: #0f172a;
+              margin-bottom: 20px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #e2e8f0;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .section-title .icon {
+              width: 24px;
+              height: 24px;
+              background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+              border-radius: 6px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 12px;
+            }
+            .metrics-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 16px;
+              margin-bottom: 30px;
+            }
+            .metric-card {
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+              border-radius: 12px;
+              padding: 20px;
+              text-align: center;
+              border: 1px solid #e2e8f0;
+              position: relative;
+              overflow: hidden;
+            }
+            .metric-card::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 4px;
+              background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+            }
+            .metric-card.green::before { background: linear-gradient(90deg, #10b981, #059669); }
+            .metric-card.yellow::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+            .metric-card.red::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+            .metric-card.blue::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+            .metric-card .value {
+              font-size: 36px;
+              font-weight: 700;
+              background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              line-height: 1.2;
+            }
+            .metric-card.green .value { background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+            .metric-card.yellow .value { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+            .metric-card.red .value { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+            .metric-card.blue .value { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+            .metric-card .label {
+              font-size: 12px;
+              color: #64748b;
+              font-weight: 500;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-top: 8px;
+            }
+            .report-container table {
+              width: 100%;
+              border-collapse: separate;
+              border-spacing: 0;
+              font-size: 13px;
+              margin-bottom: 20px;
+              border-radius: 8px;
+              overflow: hidden;
+              border: 1px solid #e2e8f0;
+            }
+            .report-container th {
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+              padding: 14px 16px;
+              text-align: left;
+              font-weight: 600;
+              color: #475569;
+              text-transform: uppercase;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+              border-bottom: 2px solid #e2e8f0;
+            }
+            .report-container td {
+              padding: 12px 16px;
+              border-bottom: 1px solid #f1f5f9;
+              color: #334155;
+            }
+            .report-container tr:last-child td { border-bottom: none; }
+            .report-container tr:nth-child(even) { background: #fafbfc; }
+            .status-badge {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 11px;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+            }
+            .status-collected { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857; }
+            .status-partial { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #b45309; }
+            .status-planned { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1d4ed8; }
+            .status-not-collected { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color: #475569; }
+            .status-blocked { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; }
+            .finding-box {
+              background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+              border: 1px solid #fcd34d;
+              border-radius: 12px;
+              padding: 20px 24px;
+              margin: 25px 0;
+              position: relative;
+            }
+            .finding-box h4 {
+              font-size: 14px;
+              font-weight: 600;
+              color: #92400e;
+              margin-bottom: 12px;
+            }
+            .finding-box ul {
+              list-style: none;
+              padding: 0;
+              margin: 0;
+            }
+            .finding-box li {
+              padding: 8px 0;
+              padding-left: 24px;
+              position: relative;
+              font-size: 13px;
+              color: #78350f;
+              border-bottom: 1px solid rgba(252, 211, 77, 0.3);
+            }
+            .finding-box li:last-child { border-bottom: none; }
+            .finding-box li::before {
+              content: '→';
+              position: absolute;
+              left: 0;
+              color: #d97706;
+              font-weight: bold;
+            }
+            .progress-bar {
+              height: 10px;
+              background: #e2e8f0;
+              border-radius: 5px;
+              overflow: hidden;
+            }
+            .progress-bar .fill {
+              height: 100%;
+              border-radius: 5px;
+            }
+            .progress-bar .fill.green { background: linear-gradient(90deg, #10b981, #059669); }
+            .progress-bar .fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+            .progress-bar .fill.red { background: linear-gradient(90deg, #ef4444, #dc2626); }
+            .progress-bar .fill.blue { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+            .progress-bar .fill.gray { background: linear-gradient(90deg, #94a3b8, #64748b); }
+            .report-footer {
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+              padding: 25px 40px;
+              border-top: 1px solid #e2e8f0;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 11px;
+              color: #64748b;
+            }
+            .report-footer .brand {
+              font-weight: 600;
+              background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+            }
+            .summary-cards {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 16px;
+              margin-bottom: 30px;
+            }
+            .summary-card {
+              padding: 24px;
+              border-radius: 12px;
+              text-align: center;
+              position: relative;
+              overflow: hidden;
+            }
+            .summary-card.red {
+              background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+              border: 1px solid #fecaca;
+            }
+            .summary-card.yellow {
+              background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+              border: 1px solid #fde68a;
+            }
+            .summary-card.green {
+              background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+              border: 1px solid #bbf7d0;
+            }
+            .summary-card .number {
+              font-size: 42px;
+              font-weight: 700;
+              line-height: 1;
+            }
+            .summary-card.red .number { color: #dc2626; }
+            .summary-card.yellow .number { color: #d97706; }
+            .summary-card.green .number { color: #16a34a; }
+            .summary-card .desc {
+              font-size: 13px;
+              font-weight: 500;
+              margin-top: 8px;
+            }
+            .summary-card.red .desc { color: #991b1b; }
+            .summary-card.yellow .desc { color: #92400e; }
+            .summary-card.green .desc { color: #166534; }
+          `}} />
           <div ref={reportRef} className="report-container">
             {/* Report Header */}
             <div className="report-header">

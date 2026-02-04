@@ -423,6 +423,59 @@ app.get('/api/relationships', (req, res) => {
   }
 });
 
+// Cleanup orphaned relationships (entities that no longer exist)
+app.post('/api/relationships/cleanup', (req, res) => {
+  try {
+    const allRelationships = relationships.getAll();
+    const allSources = sources.getAll();
+    const allTargets = targets.getAll();
+    
+    const sourceIds = new Set(allSources.map(s => s.id));
+    const targetIds = new Set(allTargets.map(t => t.id));
+    
+    const orphaned = [];
+    
+    allRelationships.forEach(rel => {
+      let isOrphaned = false;
+      
+      // Check if source entity exists
+      if (rel.sourceType === 'target') {
+        if (!targetIds.has(rel.sourceId)) isOrphaned = true;
+      } else {
+        if (!sourceIds.has(rel.sourceId)) isOrphaned = true;
+      }
+      
+      // Check if target/destination entity exists
+      if (rel.targetType === 'target') {
+        if (!targetIds.has(rel.targetId)) isOrphaned = true;
+      } else {
+        if (!sourceIds.has(rel.targetId)) isOrphaned = true;
+      }
+      
+      if (isOrphaned) {
+        orphaned.push(rel);
+        relationships.delete(rel.id);
+      }
+    });
+    
+    if (orphaned.length > 0) {
+      auditLog.add('relationships_cleanup', `Cleaned up ${orphaned.length} orphaned relationship(s)`, {
+        count: orphaned.length,
+        relationshipIds: orphaned.map(r => r.id)
+      });
+    }
+    
+    res.json({
+      success: true,
+      cleaned: orphaned.length,
+      details: orphaned
+    });
+  } catch (error) {
+    console.error('Error cleaning up relationships:', error);
+    res.status(500).json({ error: 'Failed to cleanup relationships' });
+  }
+});
+
 // Get relationships for a specific source
 app.get('/api/relationships/source/:sourceId', (req, res) => {
   try {
@@ -437,13 +490,58 @@ app.get('/api/relationships/source/:sourceId', (req, res) => {
 // Create relationship
 app.post('/api/relationships', (req, res) => {
   try {
+    const { sourceId, sourceType, targetId, targetType, type } = req.body;
+    
+    // Referential integrity: Validate source exists
+    let sourceEntity = null;
+    if (sourceType === 'target') {
+      sourceEntity = targets.getById(sourceId);
+      if (!sourceEntity) {
+        return res.status(400).json({ error: 'Source target not found' });
+      }
+    } else {
+      sourceEntity = sources.getById(sourceId);
+      if (!sourceEntity) {
+        return res.status(400).json({ error: 'Source log source not found' });
+      }
+    }
+    
+    // Referential integrity: Validate target/destination exists
+    let targetEntity = null;
+    if (targetType === 'target') {
+      targetEntity = targets.getById(targetId);
+      if (!targetEntity) {
+        return res.status(400).json({ error: 'Destination target not found' });
+      }
+    } else {
+      targetEntity = sources.getById(targetId);
+      if (!targetEntity) {
+        return res.status(400).json({ error: 'Destination log source not found' });
+      }
+    }
+    
+    // Duplicate prevention: Check if relationship already exists
+    const allRelationships = relationships.getAll();
+    const duplicate = allRelationships.find(r => 
+      r.sourceId === sourceId && 
+      r.targetId === targetId && 
+      (r.sourceType || 'source') === (sourceType || 'source') &&
+      r.targetType === targetType
+    );
+    if (duplicate) {
+      return res.status(409).json({ 
+        error: 'A relationship between these entities already exists',
+        existingRelationship: duplicate
+      });
+    }
+    
     const newRelationship = relationships.create(req.body);
-    const source = sources.getById(req.body.sourceId);
-    const target = sources.getById(req.body.targetId);
-    auditLog.add('relationship_created', `${source?.name} → ${target?.name}`, {
-      type: req.body.type,
-      sourceId: req.body.sourceId,
-      targetId: req.body.targetId
+    auditLog.add('relationship_created', `${sourceEntity.name} → ${targetEntity.name}`, {
+      type: type,
+      sourceId: sourceId,
+      sourceType: sourceType || 'source',
+      targetId: targetId,
+      targetType: targetType
     });
     res.status(201).json(newRelationship);
   } catch (error) {
@@ -459,7 +557,62 @@ app.put('/api/relationships/:id', (req, res) => {
     if (!existing) {
       return res.status(404).json({ error: 'Relationship not found' });
     }
+    
+    const { sourceId, sourceType, targetId, targetType } = req.body;
+    
+    // If source is being changed, validate it exists
+    if (sourceId && sourceId !== existing.sourceId) {
+      const effectiveSourceType = sourceType || existing.sourceType || 'source';
+      if (effectiveSourceType === 'target') {
+        if (!targets.getById(sourceId)) {
+          return res.status(400).json({ error: 'Source target not found' });
+        }
+      } else {
+        if (!sources.getById(sourceId)) {
+          return res.status(400).json({ error: 'Source log source not found' });
+        }
+      }
+    }
+    
+    // If target/destination is being changed, validate it exists
+    if (targetId && targetId !== existing.targetId) {
+      const effectiveTargetType = targetType || existing.targetType;
+      if (effectiveTargetType === 'target') {
+        if (!targets.getById(targetId)) {
+          return res.status(400).json({ error: 'Destination target not found' });
+        }
+      } else {
+        if (!sources.getById(targetId)) {
+          return res.status(400).json({ error: 'Destination log source not found' });
+        }
+      }
+    }
+    
+    // Duplicate prevention: Check if new combination already exists (excluding current)
+    const newSourceId = sourceId || existing.sourceId;
+    const newTargetId = targetId || existing.targetId;
+    const newSourceType = sourceType || existing.sourceType || 'source';
+    const newTargetType = targetType || existing.targetType;
+    
+    const allRelationships = relationships.getAll();
+    const duplicate = allRelationships.find(r => 
+      r.id !== req.params.id &&
+      r.sourceId === newSourceId && 
+      r.targetId === newTargetId && 
+      (r.sourceType || 'source') === newSourceType &&
+      r.targetType === newTargetType
+    );
+    if (duplicate) {
+      return res.status(409).json({ 
+        error: 'A relationship between these entities already exists',
+        existingRelationship: duplicate
+      });
+    }
+    
     const updated = relationships.update(req.params.id, req.body);
+    auditLog.add('relationship_updated', `Relationship updated`, {
+      relationshipId: req.params.id
+    });
     res.json(updated);
   } catch (error) {
     console.error('Error updating relationship:', error);
@@ -545,9 +698,30 @@ app.delete('/api/targets/:id', (req, res) => {
     if (!existing) {
       return res.status(404).json({ error: 'Target not found' });
     }
+    
+    // Cascade delete: Remove any relationships involving this target
+    const allRelationships = relationships.getAll();
+    const relatedRelationships = allRelationships.filter(
+      r => (r.targetId === req.params.id && r.targetType === 'target') ||
+           (r.sourceId === req.params.id && r.sourceType === 'target')
+    );
+    relatedRelationships.forEach(r => {
+      relationships.delete(r.id);
+    });
+    
     targets.delete(req.params.id);
-    auditLog.add('target_deleted', `Target deleted: ${existing.name}`);
-    res.status(204).send();
+    auditLog.add('target_deleted', `Target deleted: ${existing.name}`, {
+      cascadeDeleted: {
+        relationships: relatedRelationships.length
+      }
+    });
+    
+    res.json({
+      success: true,
+      cascadeDeleted: {
+        relationships: relatedRelationships.length
+      }
+    });
   } catch (error) {
     console.error('Error deleting target:', error);
     res.status(500).json({ error: 'Failed to delete target' });

@@ -159,6 +159,11 @@ export const relationshipsAPI = {
   delete: (id) => fetchAPI(`/relationships/${id}`, {
     method: 'DELETE',
   }),
+  
+  // Cleanup orphaned relationships (where source or target no longer exists)
+  cleanup: () => fetchAPI('/relationships/cleanup', {
+    method: 'POST',
+  }),
 };
 
 // ============ TARGETS ============
