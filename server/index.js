@@ -106,9 +106,28 @@ app.delete('/api/sources/:id', (req, res) => {
       return res.status(404).json({ error: 'Source not found' });
     }
     
+    // Cascade delete: Remove any relationships involving this source
+    const allRelationships = relationships.getAll();
+    const relatedRelationships = allRelationships.filter(
+      r => r.sourceId === req.params.id || r.targetId === req.params.id
+    );
+    relatedRelationships.forEach(r => {
+      relationships.delete(r.id);
+    });
+    
     sources.delete(req.params.id);
-    auditLog.add('deleted', existing.name);
-    res.status(204).send();
+    auditLog.add('deleted', existing.name, {
+      cascadeDeleted: {
+        relationships: relatedRelationships.length
+      }
+    });
+    
+    res.json({
+      success: true,
+      cascadeDeleted: {
+        relationships: relatedRelationships.length
+      }
+    });
   } catch (error) {
     console.error('Error deleting source:', error);
     res.status(500).json({ error: 'Failed to delete source' });

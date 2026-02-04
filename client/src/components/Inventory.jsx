@@ -22,7 +22,8 @@ import {
   Link2,
   TrendingUp,
   Layers,
-  Activity
+  Activity,
+  Settings
 } from 'lucide-react';
 import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions, validationTestLibrary } from '../constants';
 
@@ -671,162 +672,311 @@ function SourceRow({ source, isExpanded, isEditing, isSelected, onToggleSelect, 
 }
 
 function EditForm({ formData, setFormData, onSave, onCancel, saving, allCategories }) {
+  const [activeSection, setActiveSection] = useState('basic');
+  
+  const sections = [
+    { id: 'basic', label: 'Basic Info' },
+    { id: 'ownership', label: 'Ownership' },
+    { id: 'technical', label: 'Technical' },
+    { id: 'collection', label: 'Collection' },
+    { id: 'validation', label: 'Validation' },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* Basic Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Name *</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+      {/* Section Tabs */}
+      <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-x-auto">
+        {sections.map(section => (
+          <button
+            key={section.id}
+            onClick={() => setActiveSection(section.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap ${
+              activeSection === section.id
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
           >
-            {statusOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
+            {section.label}
+          </button>
+        ))}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-        <textarea
-          value={formData.description || ''}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          rows={2}
-          placeholder="Brief description of this log source and its purpose"
-          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
-      </div>
+      {/* Basic Information Section */}
+      {activeSection === 'basic' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {statusOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      {/* Ownership */}
-      <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded space-y-4">
-        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Ownership</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Team</label>
-            <input
-              type="text"
-              value={formData.ownerTeam || ''}
-              onChange={(e) => setFormData({ ...formData, ownerTeam: e.target.value })}
-              placeholder="e.g., Security Operations, Network Team"
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={2}
+              placeholder="Brief description of this log source and its purpose"
               className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {allCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Type</label>
+              <select
+                value={formData.logType || ''}
+                onChange={(e) => setFormData({ ...formData, logType: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select log type...</option>
+                {logTypeOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Criticality Tier</label>
+              <select
+                value={formData.criticalityTier || ''}
+                onChange={(e) => setFormData({ ...formData, criticalityTier: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select criticality...</option>
+                {criticalityTierOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retention Period</label>
+              <select
+                value={formData.retention || ''}
+                onChange={(e) => setFormData({ ...formData, retention: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select retention...</option>
+                {retentionOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <Tag className="h-3.5 w-3.5 inline mr-1" />
+              Tags
+            </label>
+            <TagSelector
+              selectedTags={formData.tags || []}
+              onChange={(tags) => setFormData({ ...formData, tags })}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Contact</label>
-            <input
-              type="text"
-              value={formData.ownerContact || ''}
-              onChange={(e) => setFormData({ ...formData, ownerContact: e.target.value })}
-              placeholder="e.g., email or Slack channel"
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+            <textarea
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+              placeholder="Additional notes, configuration details, known issues..."
               className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Technical Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-          <select
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            {allCategories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+      {/* Ownership Section */}
+      {activeSection === 'ownership' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded space-y-4">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <User className="h-4 w-4 text-gray-500" />
+              Ownership Information
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Team</label>
+                <input
+                  type="text"
+                  value={formData.ownerTeam || ''}
+                  onChange={(e) => setFormData({ ...formData, ownerTeam: e.target.value })}
+                  placeholder="e.g., Security Operations, Network Team"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Contact</label>
+                <input
+                  type="text"
+                  value={formData.ownerContact || ''}
+                  onChange={(e) => setFormData({ ...formData, ownerContact: e.target.value })}
+                  placeholder="e.g., email or Slack channel"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Type</label>
-          <select
-            value={formData.logType || ''}
-            onChange={(e) => setFormData({ ...formData, logType: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">Select log type...</option>
-            {logTypeOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Criticality Tier</label>
-          <select
-            value={formData.criticalityTier || ''}
-            onChange={(e) => setFormData({ ...formData, criticalityTier: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">Select criticality...</option>
-            {criticalityTierOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retention Period</label>
-          <select
-            value={formData.retention || ''}
-            onChange={(e) => setFormData({ ...formData, retention: e.target.value })}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">Select retention...</option>
-            {retentionOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      )}
 
-      {/* Tags */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          <Tag className="h-3.5 w-3.5 inline mr-1" />
-          Tags
-        </label>
-        <TagSelector
-          selectedTags={formData.tags || []}
-          onChange={(tags) => setFormData({ ...formData, tags })}
-        />
-      </div>
+      {/* Technical Details Section */}
+      {activeSection === 'technical' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded space-y-4">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <Settings className="h-4 w-4 text-gray-500" />
+              Technical Configuration
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Collection Method</label>
+              <input
+                type="text"
+                value={formData.collectionMethod || ''}
+                onChange={(e) => setFormData({ ...formData, collectionMethod: e.target.value })}
+                placeholder="e.g., Syslog, API, Agent, File-based"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Network Requirements</label>
+              <textarea
+                value={formData.networkRequirements || ''}
+                onChange={(e) => setFormData({ ...formData, networkRequirements: e.target.value })}
+                rows={2}
+                placeholder="e.g., Ports, protocols, firewall rules needed"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Credentials Reference</label>
+              <input
+                type="text"
+                value={formData.credentials || ''}
+                onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
+                placeholder="e.g., Vault path, credential manager reference"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collection Configuration Section */}
+      {activeSection === 'collection' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800 space-y-4">
+            <div className="text-sm font-medium text-purple-700 dark:text-purple-400 flex items-center gap-2">
+              <Layers className="h-4 w-4" />
+              JSON Mapping Schema
+            </div>
+            <textarea
+              value={formData.jsonMappingSchema || ''}
+              onChange={(e) => setFormData({ ...formData, jsonMappingSchema: e.target.value })}
+              rows={6}
+              placeholder='e.g., { "timestamp": "@timestamp", "source_ip": "src_addr", "dest_ip": "dst_addr" }'
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+            />
+            <p className="text-xs text-purple-600 dark:text-purple-400">
+              Define field mappings to normalize log fields to your standard schema
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Section */}
+      {activeSection === 'validation' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 space-y-4">
+            <div className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Validation Configuration
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Validation Plan</label>
+              <textarea
+                value={formData.validationPlan || ''}
+                onChange={(e) => setFormData({ ...formData, validationPlan: e.target.value })}
+                rows={2}
+                placeholder="Describe how to validate this log source is working correctly"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expected Fields</label>
+              <textarea
+                value={formData.expectedFields || ''}
+                onChange={(e) => setFormData({ ...formData, expectedFields: e.target.value })}
+                rows={2}
+                placeholder="e.g., timestamp, source_ip, dest_ip, action, user"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sample Query</label>
+              <textarea
+                value={formData.sampleQuery || ''}
+                onChange={(e) => setFormData({ ...formData, sampleQuery: e.target.value })}
+                rows={3}
+                placeholder="e.g., index=firewall sourcetype=pan:traffic | head 10"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-        <textarea
-          value={formData.notes || ''}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          rows={3}
-          placeholder="Additional notes, configuration details, known issues..."
-          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
-      </div>
-      
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
         <button
           onClick={onSave}
           disabled={saving}
           className="flex items-center gap-2 px-4 py-2 btn-gradient text-white rounded disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
         <button
           onClick={onCancel}

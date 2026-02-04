@@ -151,6 +151,10 @@ function App() {
     try {
       await sourcesAPI.delete(id);
       setSources(prev => prev.filter(s => s.id !== id));
+      
+      // Cascade update: Remove relationships involving deleted source
+      setRelationships(prev => prev.filter(r => r.sourceId !== id && r.targetId !== id));
+      
       // Refresh audit log
       const auditData = await auditAPI.getAll();
       setAuditLog(auditData);
