@@ -31,6 +31,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
   const [expandedId, setExpandedId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -96,10 +97,11 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       const matchesStatus = statusFilter === 'all' || source.status === statusFilter;
       const matchesCategory = categoryFilter === 'all' || source.category === categoryFilter;
       const matchesTag = tagFilter === 'all' || (source.tags || []).includes(tagFilter);
+      const matchesTier = tierFilter === 'all' || source.criticalityTier === tierFilter;
       
-      return matchesSearch && matchesStatus && matchesCategory && matchesTag;
+      return matchesSearch && matchesStatus && matchesCategory && matchesTag && matchesTier;
     });
-  }, [sources, search, statusFilter, categoryFilter, tagFilter]);
+  }, [sources, search, statusFilter, categoryFilter, tagFilter, tierFilter]);
 
   // Get unique categories from sources
   const usedCategories = [...new Set(sources.map(s => s.category).filter(Boolean))];
@@ -225,6 +227,27 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
               <option key={tag} value={tag}>{tagOption?.label || tag}</option>
             );
           })}
+        </select>
+        
+        <select
+          value={tierFilter}
+          onChange={(e) => setTierFilter(e.target.value)}
+          className={`px-3 py-1.5 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            tierFilter === 'tier-1' 
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-700 dark:text-red-400'
+              : tierFilter === 'tier-2'
+                ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400'
+                : tierFilter === 'tier-3'
+                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400'
+                  : tierFilter === 'tier-4'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400'
+                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white'
+          }`}
+        >
+          <option value="all">All Tiers</option>
+          {criticalityTierOptions.map(tier => (
+            <option key={tier.value} value={tier.value}>{tier.label}</option>
+          ))}
         </select>
       </div>
 
