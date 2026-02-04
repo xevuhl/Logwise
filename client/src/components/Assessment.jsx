@@ -4,7 +4,7 @@ import { assessmentQuestions, assessmentResponseOptions, mitreTactics } from '..
 
 function Assessment({ assessments, onSave, sources }) {
   const [expandedCategory, setExpandedCategory] = useState(null);
-  const [saving, setSaving] = useState(null);
+  const [saving, setSaving] = useState(null); // Will store { questionId, value } when saving
 
   // Group questions by category
   const questionsByCategory = assessmentQuestions.reduce((acc, q) => {
@@ -41,7 +41,7 @@ function Assessment({ assessments, onSave, sources }) {
   };
 
   async function handleResponse(questionId, response) {
-    setSaving(questionId);
+    setSaving({ questionId, value: response });
     try {
       await onSave(questionId, {
         response,
@@ -49,6 +49,8 @@ function Assessment({ assessments, onSave, sources }) {
         linkedSources: assessments[questionId]?.linkedSources || [],
         updatedAt: new Date().toISOString()
       });
+    } catch (err) {
+      console.error('Failed to save assessment response:', err);
     } finally {
       setSaving(null);
     }
@@ -182,20 +184,30 @@ function Assessment({ assessments, onSave, sources }) {
                             
                             {/* Response buttons */}
                             <div className="flex gap-1.5 mt-3">
-                              {assessmentResponseOptions.map(option => (
-                                <button
-                                  key={option.value}
-                                  onClick={() => handleResponse(question.id, option.value)}
-                                  disabled={saving === question.id}
-                                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                                    response?.response === option.value
-                                      ? getSelectedClass(option.value)
-                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                                  }`}
-                                >
-                                  {saving === question.id ? '...' : option.label}
-                                </button>
-                              ))}
+                              {assessmentResponseOptions.map(option => {
+                                const isThisButtonSaving = saving?.questionId === question.id && saving?.value === option.value;
+                                const isQuestionSaving = saving?.questionId === question.id;
+                                
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleResponse(question.id, option.value);
+                                    }}
+                                    disabled={isQuestionSaving}
+                                    className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                                      response?.response === option.value
+                                        ? getSelectedClass(option.value)
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                    } ${isQuestionSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                  >
+                                    {isThisButtonSaving ? '...' : option.label}
+                                  </button>
+                                );
+                              })}
                             </div>
 
                             {/* Notes input */}
