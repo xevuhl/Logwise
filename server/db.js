@@ -553,4 +553,41 @@ export const integrationSyncHistory = {
   }
 };
 
+// ============ SOURCE ACTIVITY TIMELINE ============
+
+export const sourceActivity = {
+  getAll() {
+    return readData('source-activity.json');
+  },
+
+  getBySourceId(sourceId) {
+    const all = this.getAll();
+    return all
+      .filter(a => a.sourceId === sourceId)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  },
+
+  add(sourceId, type, description, details = null) {
+    const all = this.getAll();
+    const entry = {
+      id: generateId(),
+      sourceId,
+      type,
+      description,
+      details: details ? (typeof details === 'string' ? details : JSON.stringify(details)) : null,
+      timestamp: new Date().toISOString()
+    };
+    all.push(entry);
+    writeData('source-activity.json', all);
+    return entry;
+  },
+
+  deleteBySourceId(sourceId) {
+    let all = this.getAll();
+    all = all.filter(a => a.sourceId !== sourceId);
+    writeData('source-activity.json', all);
+    return true;
+  }
+};
+
 console.log('Data storage initialized at:', DATA_DIR);

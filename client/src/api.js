@@ -30,6 +30,8 @@ export const sourcesAPI = {
   
   getById: (id) => fetchAPI(`/sources/${id}`),
   
+  getActivity: (id) => fetchAPI(`/sources/${id}/activity`),
+  
   create: (source) => fetchAPI('/sources', {
     method: 'POST',
     body: JSON.stringify(source),

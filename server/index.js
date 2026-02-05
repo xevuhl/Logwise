@@ -4,7 +4,7 @@ import path from 'path';
 import https from 'https';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
-import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory, sourceActivity } from './db.js';
 import { validate, validateSource, validateBulkImport, validateSourceOrder, validateTarget, validateRelationship, validateAssessment, validateBulkAssessments, validateCampaign, validateValidationTest, validateSavedView, validateIntegration } from './validate.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -59,11 +59,30 @@ app.get('/api/sources/:id', (req, res) => {
   }
 });
 
+// Get activity timeline for a specific source
+app.get('/api/sources/:id/activity', (req, res) => {
+  try {
+    const source = sources.getById(req.params.id);
+    if (!source) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    const activities = sourceActivity.getBySourceId(req.params.id);
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching source activity:', error);
+    res.status(500).json({ error: 'Failed to fetch source activity' });
+  }
+});
+
 // Create log source
 app.post('/api/sources', validate(validateSource), (req, res) => {
   try {
     const newSource = sources.create(req.body);
     auditLog.add('created', newSource.name);
+    sourceActivity.add(newSource.id, 'created', `Source "${newSource.name}" was created`, {
+      status: newSource.status,
+      category: newSource.category
+    });
     res.status(201).json(newSource);
   } catch (error) {
     console.error('Error creating source:', error);
@@ -93,6 +112,17 @@ app.put('/api/sources/:id', validate(validateSource, { isUpdate: true }), (req, 
     
     const updated = sources.update(req.params.id, req.body);
     
+    // Track field-level changes for activity timeline
+    const trackedFields = ['name', 'status', 'category', 'logType', 'criticalityTier', 'retention', 'ownerTeam', 'ownerContact', 'description', 'collectionMethod', 'tags'];
+    const changes = [];
+    for (const field of trackedFields) {
+      const oldVal = JSON.stringify(existing[field] || '');
+      const newVal = JSON.stringify(req.body[field] || '');
+      if (oldVal !== newVal) {
+        changes.push({ field, oldValue: existing[field], newValue: req.body[field] });
+      }
+    }
+    
     // Log status changes specifically
     if (existing.status !== req.body.status) {
       auditLog.add('status_changed', updated.name, {
@@ -100,8 +130,21 @@ app.put('/api/sources/:id', validate(validateSource, { isUpdate: true }), (req, 
         oldValue: existing.status,
         newValue: req.body.status
       });
+      sourceActivity.add(req.params.id, 'status_changed', `Status changed from "${existing.status}" to "${req.body.status}"`, {
+        field: 'status',
+        oldValue: existing.status,
+        newValue: req.body.status
+      });
     } else {
       auditLog.add('updated', updated.name);
+    }
+    
+    // Record general field updates (excluding status which is handled above)
+    const nonStatusChanges = changes.filter(c => c.field !== 'status');
+    if (nonStatusChanges.length > 0) {
+      sourceActivity.add(req.params.id, 'updated', `Updated ${nonStatusChanges.map(c => c.field).join(', ')}`, {
+        changes: nonStatusChanges
+      });
     }
     
     res.json(updated);
@@ -129,6 +172,7 @@ app.delete('/api/sources/:id', (req, res) => {
     });
     
     sources.delete(req.params.id);
+    sourceActivity.deleteBySourceId(req.params.id);
     auditLog.add('deleted', existing.name, {
       cascadeDeleted: {
         relationships: relatedRelationships.length
@@ -158,8 +202,15 @@ app.post('/api/sources/bulk', validate(validateBulkImport), (req, res) => {
       existing.forEach(s => sources.delete(s.id));
     }
     
-    sources.bulkCreate(sourceList);
+    const newSources = sources.bulkCreate(sourceList);
     auditLog.add('imported', 'Bulk Import', { count: sourceList.length });
+    
+    // Record activity for each imported source
+    for (const src of newSources) {
+      sourceActivity.add(src.id, 'created', `Source "${src.name}" was imported via bulk import`, {
+        importMethod: 'bulk'
+      });
+    }
     
     res.json({ imported: sourceList.length });
   } catch (error) {
@@ -264,6 +315,7 @@ app.get('/api/export', (req, res) => {
         logSources: sources.getAll(),
         assessments: assessments.getAll(),
         validationTests: validationTests.getAll(),
+        sourceActivity: sourceActivity.getAll(),
         auditLog: auditLog.getAll(),
         savedViews: savedViews.getAll()
       }
@@ -544,6 +596,26 @@ app.post('/api/relationships', validate(validateRelationship), (req, res) => {
       targetId: targetId,
       targetType: targetType
     });
+    
+    // Record activity on the source side of the relationship
+    if (!sourceType || sourceType === 'source') {
+      sourceActivity.add(sourceId, 'relationship_added', `Relationship added: ${sourceEntity.name} → ${targetEntity.name} (${type})`, {
+        relationshipId: newRelationship.id,
+        relatedEntity: targetEntity.name,
+        relatedType: targetType,
+        relationshipType: type
+      });
+    }
+    // If the target is a source, record activity on that side too
+    if (!targetType || targetType === 'source') {
+      sourceActivity.add(targetId, 'relationship_added', `Relationship added: ${sourceEntity.name} → ${targetEntity.name} (${type})`, {
+        relationshipId: newRelationship.id,
+        relatedEntity: sourceEntity.name,
+        relatedType: sourceType || 'source',
+        relationshipType: type
+      });
+    }
+    
     res.status(201).json(newRelationship);
   } catch (error) {
     console.error('Error creating relationship:', error);

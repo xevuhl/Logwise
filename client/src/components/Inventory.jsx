@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions, validationTestLibrary } from '../constants';
 import Pagination from './Pagination';
+import ActivityTimeline from './ActivityTimeline';
 
 function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding, targets, relationships, validationTests }) {
   const [search, setSearch] = useState('');
@@ -472,6 +473,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
 function SourceRow({ source, isExpanded, isEditing, isSelected, onToggleSelect, onToggle, onEdit, onCancelEdit, onUpdate, onDelete, allCategories, target, relationshipCount }) {
   const [formData, setFormData] = useState(source);
   const [saving, setSaving] = useState(false);
+  const [detailTab, setDetailTab] = useState('details');
 
   const handleSave = async () => {
     setSaving(true);
@@ -584,100 +586,137 @@ function SourceRow({ source, isExpanded, isEditing, isSelected, onToggleSelect, 
             />
           ) : (
             <div className="space-y-3">
-              {/* Description */}
-              {source.description && (
-                <div className="text-xs text-gray-700 dark:text-gray-300">
-                  {source.description}
-                </div>
-              )}
-
-              {/* Key Details Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <DetailItem label="Log Type" value={logTypeOptions.find(o => o.value === source.logType)?.label || source.logType || 'Not specified'} />
-                <DetailItem label="Criticality Tier" value={criticalityTierOptions.find(o => o.value === source.criticalityTier)?.label || source.criticalityTier || 'Not specified'} />
-                <DetailItem label="Retention" value={retentionOptions.find(o => o.value === source.retention)?.label || source.retention || 'Not specified'} />
-                <DetailItem label="Last Updated" value={source.updatedAt ? new Date(source.updatedAt).toLocaleString() : 'N/A'} />
+              {/* Detail / Activity Tabs */}
+              <div className="flex items-center gap-1 border-b border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setDetailTab('details')}
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                    detailTab === 'details'
+                      ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => setDetailTab('activity')}
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    detailTab === 'activity'
+                      ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Clock className="h-3 w-3" />
+                  Activity
+                </button>
               </div>
 
-              {/* Owner Information */}
-              <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded">
-                <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Ownership</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-gray-400" />
-                    <div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">Team</div>
-                      <div className="text-xs text-gray-900 dark:text-white">{source.ownerTeam || 'Not assigned'}</div>
+              {/* Details Tab Content */}
+              {detailTab === 'details' && (
+                <div className="space-y-3 animate-fade-in">
+                  {/* Description */}
+                  {source.description && (
+                    <div className="text-xs text-gray-700 dark:text-gray-300">
+                      {source.description}
+                    </div>
+                  )}
+
+                  {/* Key Details Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <DetailItem label="Log Type" value={logTypeOptions.find(o => o.value === source.logType)?.label || source.logType || 'Not specified'} />
+                    <DetailItem label="Criticality Tier" value={criticalityTierOptions.find(o => o.value === source.criticalityTier)?.label || source.criticalityTier || 'Not specified'} />
+                    <DetailItem label="Retention" value={retentionOptions.find(o => o.value === source.retention)?.label || source.retention || 'Not specified'} />
+                    <DetailItem label="Last Updated" value={source.updatedAt ? new Date(source.updatedAt).toLocaleString() : 'N/A'} />
+                  </div>
+
+                  {/* Owner Information */}
+                  <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Ownership</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-gray-400" />
+                        <div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400">Team</div>
+                          <div className="text-xs text-gray-900 dark:text-white">{source.ownerTeam || 'Not assigned'}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 text-gray-400" />
+                        <div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400">Contact</div>
+                          <div className="text-xs text-gray-900 dark:text-white">{source.ownerContact || 'Not specified'}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-gray-400" />
-                    <div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">Contact</div>
-                      <div className="text-xs text-gray-900 dark:text-white">{source.ownerContact || 'Not specified'}</div>
+                  
+                  {source.notes && (
+                    <div className="p-2.5 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                      <div className="text-[10px] font-medium text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-0.5">Notes</div>
+                      <div className="text-xs text-yellow-800 dark:text-yellow-300">{source.notes}</div>
                     </div>
-                  </div>
-                </div>
-              </div>
-              
-              {source.notes && (
-                <div className="p-2.5 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
-                  <div className="text-[10px] font-medium text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-0.5">Notes</div>
-                  <div className="text-xs text-yellow-800 dark:text-yellow-300">{source.notes}</div>
+                  )}
+
+                  {/* Technical Details */}
+                  {(source.collectionMethod || source.networkRequirements || source.credentials) && (
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded">
+                      <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Technical Details</div>
+                      <div className="space-y-2">
+                        {source.collectionMethod && (
+                          <div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400">Collection Method</div>
+                            <div className="text-xs text-gray-900 dark:text-white">{source.collectionMethod}</div>
+                          </div>
+                        )}
+                        {source.networkRequirements && (
+                          <div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400">Network Requirements</div>
+                            <div className="text-xs text-gray-900 dark:text-white">{source.networkRequirements}</div>
+                          </div>
+                        )}
+                        {source.credentials && (
+                          <div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400">Credentials Reference</div>
+                            <div className="text-xs text-gray-900 dark:text-white">{source.credentials}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Validation Details */}
+                  {(source.validationPlan || source.expectedFields || source.sampleQuery) && (
+                    <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                      <div className="text-[10px] font-medium text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">Validation</div>
+                      <div className="space-y-2">
+                        {source.validationPlan && (
+                          <div>
+                            <div className="text-[10px] text-blue-600 dark:text-blue-400">Validation Plan</div>
+                            <div className="text-xs text-gray-900 dark:text-white">{source.validationPlan}</div>
+                          </div>
+                        )}
+                        {source.expectedFields && (
+                          <div>
+                            <div className="text-[10px] text-blue-600 dark:text-blue-400">Expected Fields</div>
+                            <div className="text-xs text-gray-900 dark:text-white">{source.expectedFields}</div>
+                          </div>
+                        )}
+                        {source.sampleQuery && (
+                          <div>
+                            <div className="text-[10px] text-blue-600 dark:text-blue-400">Sample Query</div>
+                            <pre className="text-xs text-gray-900 dark:text-white font-mono bg-blue-100 dark:bg-blue-900/30 p-2 rounded mt-1 overflow-x-auto">{source.sampleQuery}</pre>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Technical Details */}
-              {(source.collectionMethod || source.networkRequirements || source.credentials) && (
-                <div className="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded">
-                  <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Technical Details</div>
-                  <div className="space-y-2">
-                    {source.collectionMethod && (
-                      <div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400">Collection Method</div>
-                        <div className="text-xs text-gray-900 dark:text-white">{source.collectionMethod}</div>
-                      </div>
-                    )}
-                    {source.networkRequirements && (
-                      <div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400">Network Requirements</div>
-                        <div className="text-xs text-gray-900 dark:text-white">{source.networkRequirements}</div>
-                      </div>
-                    )}
-                    {source.credentials && (
-                      <div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400">Credentials Reference</div>
-                        <div className="text-xs text-gray-900 dark:text-white">{source.credentials}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Validation Details */}
-              {(source.validationPlan || source.expectedFields || source.sampleQuery) && (
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                  <div className="text-[10px] font-medium text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">Validation</div>
-                  <div className="space-y-2">
-                    {source.validationPlan && (
-                      <div>
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400">Validation Plan</div>
-                        <div className="text-xs text-gray-900 dark:text-white">{source.validationPlan}</div>
-                      </div>
-                    )}
-                    {source.expectedFields && (
-                      <div>
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400">Expected Fields</div>
-                        <div className="text-xs text-gray-900 dark:text-white">{source.expectedFields}</div>
-                      </div>
-                    )}
-                    {source.sampleQuery && (
-                      <div>
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400">Sample Query</div>
-                        <pre className="text-xs text-gray-900 dark:text-white font-mono bg-blue-100 dark:bg-blue-900/30 p-2 rounded mt-1 overflow-x-auto">{source.sampleQuery}</pre>
-                      </div>
-                    )}
-                  </div>
+              {/* Activity Tab Content */}
+              {detailTab === 'activity' && (
+                <div className="animate-fade-in">
+                  <ActivityTimeline sourceId={source.id} />
                 </div>
               )}
 
