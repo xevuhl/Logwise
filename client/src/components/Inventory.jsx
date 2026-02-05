@@ -26,6 +26,7 @@ import {
   Settings
 } from 'lucide-react';
 import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions, retentionOptions, defaultTagOptions, validationTestLibrary } from '../constants';
+import Pagination from './Pagination';
 
 function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding, targets, relationships, validationTests }) {
   const [search, setSearch] = useState('');
@@ -40,6 +41,8 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Calculate stats for summary cards
   const stats = useMemo(() => {
@@ -106,24 +109,35 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
     });
   }, [sources, search, statusFilter, categoryFilter, tagFilter, tierFilter]);
 
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, categoryFilter, tagFilter, tierFilter]);
+
+  // Paginate filtered sources
+  const paginatedSources = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSources.slice(start, start + pageSize);
+  }, [filteredSources, currentPage, pageSize]);
+
   // Get unique categories from sources
   const usedCategories = [...new Set(sources.map(s => s.category).filter(Boolean))];
   const allCategories = [...new Set([...categoryOptions, ...usedCategories])].sort();
 
-  // Selection helpers
-  const allFilteredSelected = filteredSources.length > 0 && filteredSources.every(s => selectedIds.has(s.id));
-  const someFilteredSelected = filteredSources.some(s => selectedIds.has(s.id));
+  // Selection helpers (operate on current page)
+  const allFilteredSelected = paginatedSources.length > 0 && paginatedSources.every(s => selectedIds.has(s.id));
+  const someFilteredSelected = paginatedSources.some(s => selectedIds.has(s.id));
   
   const toggleSelectAll = () => {
     if (allFilteredSelected) {
-      // Deselect all filtered
+      // Deselect all on current page
       const newSelected = new Set(selectedIds);
-      filteredSources.forEach(s => newSelected.delete(s.id));
+      paginatedSources.forEach(s => newSelected.delete(s.id));
       setSelectedIds(newSelected);
     } else {
-      // Select all filtered
+      // Select all on current page
       const newSelected = new Set(selectedIds);
-      filteredSources.forEach(s => newSelected.add(s.id));
+      paginatedSources.forEach(s => newSelected.add(s.id));
       setSelectedIds(newSelected);
     }
   };
@@ -348,10 +362,10 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
             />
             <span className="text-xs text-gray-600 dark:text-gray-400">
               {allFilteredSelected 
-                ? `All ${filteredSources.length} sources selected` 
+                ? `All ${paginatedSources.length} on this page selected` 
                 : someFilteredSelected 
                   ? `${selectedIds.size} selected`
-                  : 'Select all'}
+                  : 'Select all on page'}
             </span>
             {selectedIds.size > 0 && (
               <button
@@ -375,7 +389,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredSources.map(source => {
+            {paginatedSources.map(source => {
               // Find target and relationships for this source
               const sourceTarget = targets?.find(t => t.id === source.targetId);
               const sourceRelationships = relationships?.filter(r => r.sourceId === source.id) || [];
@@ -400,6 +414,17 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
               );
             })}
           </div>
+        )}
+
+        {/* Pagination */}
+        {filteredSources.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredSources.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
         )}
       </div>
 

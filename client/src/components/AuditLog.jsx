@@ -1,9 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Search, Filter, Clock, Edit2, Trash2, RefreshCw, FlaskConical } from 'lucide-react';
+import Pagination from './Pagination';
 
 function AuditLog({ entries }) {
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   // Get unique actions
   const actions = [...new Set(entries.map(e => e.action))];
@@ -21,16 +24,28 @@ function AuditLog({ entries }) {
     });
   }, [entries, search, actionFilter]);
 
-  // Group by date
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, actionFilter]);
+
+  // Paginate filtered entries
+  const paginatedEntries = useMemo(() => {
+    const sorted = [...filteredEntries].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const start = (currentPage - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [filteredEntries, currentPage, pageSize]);
+
+  // Group paginated entries by date
   const groupedEntries = useMemo(() => {
     const groups = {};
-    filteredEntries.forEach(entry => {
+    paginatedEntries.forEach(entry => {
       const date = new Date(entry.timestamp).toLocaleDateString();
       if (!groups[date]) groups[date] = [];
       groups[date].push(entry);
     });
     return groups;
-  }, [filteredEntries]);
+  }, [paginatedEntries]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -69,7 +84,9 @@ function AuditLog({ entries }) {
 
       {/* Results count */}
       <div className="text-xs text-gray-600 dark:text-gray-400">
-        Showing {filteredEntries.length} of {entries.length} entries
+        {filteredEntries.length === entries.length
+          ? `${entries.length} entries`
+          : `${filteredEntries.length} of ${entries.length} entries match filters`}
       </div>
 
       {/* Audit entries */}
@@ -98,6 +115,19 @@ function AuditLog({ entries }) {
             ))
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredEntries.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredEntries.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      )}
     </div>
   );
 }

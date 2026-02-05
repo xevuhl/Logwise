@@ -5,6 +5,7 @@ import https from 'https';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
 import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory } from './db.js';
+import { validate, validateSource, validateBulkImport, validateSourceOrder, validateTarget, validateRelationship, validateAssessment, validateBulkAssessments, validateCampaign, validateValidationTest, validateSavedView, validateIntegration } from './validate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,7 +60,7 @@ app.get('/api/sources/:id', (req, res) => {
 });
 
 // Create log source
-app.post('/api/sources', (req, res) => {
+app.post('/api/sources', validate(validateSource), (req, res) => {
   try {
     const newSource = sources.create(req.body);
     auditLog.add('created', newSource.name);
@@ -71,7 +72,7 @@ app.post('/api/sources', (req, res) => {
 });
 
 // Update source order (drag and drop) — must be before :id route
-app.put('/api/sources/order', (req, res) => {
+app.put('/api/sources/order', validate(validateSourceOrder), (req, res) => {
   try {
     const { orderedIds } = req.body;
     sources.updateOrder(orderedIds);
@@ -83,7 +84,7 @@ app.put('/api/sources/order', (req, res) => {
 });
 
 // Update log source
-app.put('/api/sources/:id', (req, res) => {
+app.put('/api/sources/:id', validate(validateSource, { isUpdate: true }), (req, res) => {
   try {
     const existing = sources.getById(req.params.id);
     if (!existing) {
@@ -147,7 +148,7 @@ app.delete('/api/sources/:id', (req, res) => {
 });
 
 // Bulk import sources
-app.post('/api/sources/bulk', (req, res) => {
+app.post('/api/sources/bulk', validate(validateBulkImport), (req, res) => {
   try {
     const { sources: sourceList, replaceAll } = req.body;
     
@@ -181,7 +182,7 @@ app.get('/api/assessments', (req, res) => {
 });
 
 // Save assessment response
-app.post('/api/assessments/:questionId', (req, res) => {
+app.post('/api/assessments/:questionId', validate(validateAssessment), (req, res) => {
   try {
     assessments.save(req.params.questionId, req.body);
     res.json({ success: true });
@@ -192,7 +193,7 @@ app.post('/api/assessments/:questionId', (req, res) => {
 });
 
 // Bulk save assessments
-app.post('/api/assessments/bulk', (req, res) => {
+app.post('/api/assessments/bulk', validate(validateBulkAssessments), (req, res) => {
   try {
     assessments.saveAll(req.body);
     res.json({ success: true });
@@ -229,7 +230,7 @@ app.get('/api/views', (req, res) => {
 });
 
 // Create saved view
-app.post('/api/views', (req, res) => {
+app.post('/api/views', validate(validateSavedView), (req, res) => {
   try {
     const newView = savedViews.create(req.body);
     res.status(201).json(newView);
@@ -288,7 +289,7 @@ app.get('/api/validation', (req, res) => {
 });
 
 // Save validation test result
-app.post('/api/validation/:testId', (req, res) => {
+app.post('/api/validation/:testId', validate(validateValidationTest), (req, res) => {
   try {
     const result = validationTests.save(req.params.testId, req.body);
     auditLog.add('validation_test', req.params.testId, {
@@ -358,7 +359,7 @@ app.get('/api/campaigns/:id', (req, res) => {
 });
 
 // Create campaign
-app.post('/api/campaigns', (req, res) => {
+app.post('/api/campaigns', validate(validateCampaign), (req, res) => {
   try {
     const newCampaign = validationCampaigns.create(req.body);
     auditLog.add('campaign_created', req.body.name);
@@ -370,7 +371,7 @@ app.post('/api/campaigns', (req, res) => {
 });
 
 // Update campaign
-app.put('/api/campaigns/:id', (req, res) => {
+app.put('/api/campaigns/:id', validate(validateCampaign, { isUpdate: true }), (req, res) => {
   try {
     const updated = validationCampaigns.update(req.params.id, req.body);
     if (!updated) {
@@ -488,7 +489,7 @@ app.get('/api/relationships/source/:sourceId', (req, res) => {
 });
 
 // Create relationship
-app.post('/api/relationships', (req, res) => {
+app.post('/api/relationships', validate(validateRelationship), (req, res) => {
   try {
     const { sourceId, sourceType, targetId, targetType, type } = req.body;
     
@@ -551,7 +552,7 @@ app.post('/api/relationships', (req, res) => {
 });
 
 // Update relationship
-app.put('/api/relationships/:id', (req, res) => {
+app.put('/api/relationships/:id', validate(validateRelationship, { isUpdate: true }), (req, res) => {
   try {
     const existing = relationships.getById(req.params.id);
     if (!existing) {
@@ -664,7 +665,7 @@ app.get('/api/targets/:id', (req, res) => {
 });
 
 // Create target
-app.post('/api/targets', (req, res) => {
+app.post('/api/targets', validate(validateTarget), (req, res) => {
   try {
     const newTarget = targets.create(req.body);
     auditLog.add('target_created', `Target created: ${newTarget.name}`);
@@ -676,7 +677,7 @@ app.post('/api/targets', (req, res) => {
 });
 
 // Update target
-app.put('/api/targets/:id', (req, res) => {
+app.put('/api/targets/:id', validate(validateTarget, { isUpdate: true }), (req, res) => {
   try {
     const existing = targets.getById(req.params.id);
     if (!existing) {
@@ -772,7 +773,7 @@ app.get('/api/integrations/:id', (req, res) => {
 });
 
 // Create integration
-app.post('/api/integrations', (req, res) => {
+app.post('/api/integrations', validate(validateIntegration), (req, res) => {
   try {
     const newIntegration = integrations.create(req.body);
     auditLog.add('integration_created', `${req.body.type}: ${req.body.name}`);
@@ -785,7 +786,7 @@ app.post('/api/integrations', (req, res) => {
 });
 
 // Update integration
-app.put('/api/integrations/:id', (req, res) => {
+app.put('/api/integrations/:id', validate(validateIntegration, { isUpdate: true }), (req, res) => {
   try {
     const existing = integrations.getById(req.params.id);
     if (!existing) {
