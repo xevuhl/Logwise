@@ -441,16 +441,42 @@ export const relationshipTypes = [
 
 // Category options for log sources
 export const categoryOptions = [
-  'Network',
-  'Endpoint',
-  'Application',
-  'Cloud',
-  'Identity',
-  'Security',
-  'Database',
-  'Email',
-  'Web',
-  'Other',
+  // Infrastructure
+  'Network',           // Firewalls, routers, switches, load balancers, VPN
+  'Endpoint',          // Windows/Linux/Mac OS logs, sysmon
+  'Cloud',             // AWS, Azure, GCP platform logs (CloudTrail, Activity Log, etc.)
+  'Database',          // SQL Server, PostgreSQL, Oracle audit logs
+  'Virtualization',    // VMware, Hyper-V, container platforms
+  
+  // Security Tools
+  'EDR',               // CrowdStrike, Defender for Endpoint, SentinelOne, Carbon Black
+  'NDR',               // Zeek, Corelight, Darktrace, ExtraHop
+  'Email Security',    // Proofpoint, Mimecast, Microsoft Defender for O365
+  'IAM',               // Okta, Azure AD, Ping, CyberArk, identity providers
+  'CASB',              // Netskope, Zscaler, McAfee MVISION Cloud
+  'DLP',               // Data loss prevention tools
+  'Vulnerability',     // Qualys, Tenable, Rapid7 scan results
+  'PAM',               // CyberArk, BeyondTrust privileged access logs
+  
+  // Web & CDN
+  'WAF',               // Cloudflare WAF, AWS WAF, Akamai, Imperva
+  'CDN',               // Cloudflare, Akamai, Fastly access logs
+  'Proxy',             // Zscaler, Squid, Blue Coat, web proxy logs
+  'DNS',               // DNS query logs, Infoblox, Umbrella
+  
+  // Applications
+  'Application',       // Custom business applications
+  'SaaS',              // Microsoft 365, Google Workspace, Salesforce, ServiceNow
+  'DevOps',            // GitHub Enterprise, GitLab, Bitbucket, CI/CD pipelines
+  'Collaboration',     // Slack, Teams, Zoom audit logs
+  
+  // Physical & IoT
+  'Physical Security', // Badge readers, CCTV, building access
+  'IoT',               // IoT devices, sensors, OT/ICS systems
+  
+  // Other
+  'Custom',            // Custom/internal tools
+  'Other',             // Anything that doesn't fit elsewhere
 ];
 
 // Target types (ingestion destinations)
