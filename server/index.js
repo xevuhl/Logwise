@@ -70,6 +70,18 @@ app.post('/api/sources', (req, res) => {
   }
 });
 
+// Update source order (drag and drop) — must be before :id route
+app.put('/api/sources/order', (req, res) => {
+  try {
+    const { orderedIds } = req.body;
+    sources.updateOrder(orderedIds);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({ error: 'Failed to update order' });
+  }
+});
+
 // Update log source
 app.put('/api/sources/:id', (req, res) => {
   try {
@@ -152,18 +164,6 @@ app.post('/api/sources/bulk', (req, res) => {
   } catch (error) {
     console.error('Error bulk importing:', error);
     res.status(500).json({ error: 'Failed to import sources' });
-  }
-});
-
-// Update source order (drag and drop)
-app.put('/api/sources/order', (req, res) => {
-  try {
-    const { orderedIds } = req.body;
-    sources.updateOrder(orderedIds);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating order:', error);
-    res.status(500).json({ error: 'Failed to update order' });
   }
 });
 
