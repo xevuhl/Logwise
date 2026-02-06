@@ -51,8 +51,8 @@ function AuditLog({ entries }) {
     <div className="space-y-4 animate-fade-in">
       {/* Page header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Audit Log</h2>
-        <p className="text-xs text-gray-600 dark:text-gray-400">Track all changes to your log source inventory</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Audit Log</h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Track all changes to your log source inventory</p>
       </div>
 
       {/* Filters */}
@@ -92,7 +92,7 @@ function AuditLog({ entries }) {
       {/* Audit entries */}
       <div className="space-y-4">
         {Object.entries(groupedEntries).length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded p-8 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200/80 dark:border-gray-700/60 text-center">
             <Clock className="h-10 w-10 text-gray-400 mx-auto mb-3" />
             <div className="text-sm text-gray-500 dark:text-gray-400">No audit entries found</div>
           </div>
@@ -104,7 +104,7 @@ function AuditLog({ entries }) {
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
                   {formatDate(date)}
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 divide-y divide-gray-200 dark:divide-gray-700">
                   {dateEntries
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     .map(entry => (
@@ -118,7 +118,7 @@ function AuditLog({ entries }) {
 
       {/* Pagination */}
       {filteredEntries.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 overflow-hidden">
           <Pagination
             currentPage={currentPage}
             totalItems={filteredEntries.length}

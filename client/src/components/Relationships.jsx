@@ -124,11 +124,11 @@ function Relationships({ sources, targets, relationships, onCreate, onUpdate, on
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
             <GitMerge className="h-5 w-5 text-indigo-500" />
             Relationship Mapping
           </h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Map data flows and dependencies between log sources
           </p>
         </div>
@@ -1003,7 +1003,8 @@ function RelationshipModal({ relationship, sources, targets, onClose, onSave }) 
     
     setSaving(true);
     try {
-      await onSave(formData);
+      const { id, createdAt, updatedAt, ...cleanData } = formData;
+      await onSave(cleanData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1273,35 +1274,47 @@ function DeleteConfirmModal({ relationship, sourcesMap, targetsMap, onClose, onC
 
 // StatCard component for consistent styling
 function StatCard({ title, value, subtitle, icon: Icon, color = 'blue' }) {
-  const colorClasses = {
-    blue: 'text-blue-500',
-    green: 'text-green-500',
-    yellow: 'text-yellow-500',
-    red: 'text-red-500',
-    purple: 'text-purple-500',
-    indigo: 'text-indigo-500',
-    cyan: 'text-cyan-500',
-    orange: 'text-orange-500',
+  const accentClasses = {
+    blue: 'from-cyan-500 to-blue-600',
+    green: 'from-emerald-500 to-green-600',
+    yellow: 'from-yellow-500 to-amber-600',
+    red: 'from-rose-500 to-red-600',
+    purple: 'from-violet-500 to-purple-600',
+    indigo: 'from-indigo-500 to-blue-600',
+    cyan: 'from-cyan-500 to-teal-600',
+    orange: 'from-amber-500 to-orange-600',
   };
-
-  const valueColorClasses = {
-    blue: 'text-blue-600 dark:text-blue-400',
-    green: 'text-green-600 dark:text-green-400',
+  const iconBgClasses = {
+    blue: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+    green: 'bg-emerald-500/10 dark:bg-emerald-400/10',
+    yellow: 'bg-yellow-500/10 dark:bg-yellow-400/10',
+    red: 'bg-rose-500/10 dark:bg-rose-400/10',
+    purple: 'bg-violet-500/10 dark:bg-violet-400/10',
+    indigo: 'bg-indigo-500/10 dark:bg-indigo-400/10',
+    cyan: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+    orange: 'bg-amber-500/10 dark:bg-amber-400/10',
+  };
+  const iconColorClasses = {
+    blue: 'text-cyan-600 dark:text-cyan-400',
+    green: 'text-emerald-600 dark:text-emerald-400',
     yellow: 'text-yellow-600 dark:text-yellow-400',
-    red: 'text-red-600 dark:text-red-400',
-    purple: 'text-purple-600 dark:text-purple-400',
+    red: 'text-rose-600 dark:text-rose-400',
+    purple: 'text-violet-600 dark:text-violet-400',
     indigo: 'text-indigo-600 dark:text-indigo-400',
     cyan: 'text-cyan-600 dark:text-cyan-400',
-    orange: 'text-orange-600 dark:text-orange-400',
+    orange: 'text-amber-600 dark:text-amber-400',
   };
 
   return (
-    <div className="p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+    <div className="relative bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200/80 dark:border-gray-700/60 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${accentClasses[color]} opacity-80`} />
       <div className="flex items-center gap-2 mb-1">
-        <Icon className={`h-4 w-4 ${colorClasses[color]}`} />
-        <span className="text-xs text-gray-500 dark:text-gray-400">{title}</span>
+        <div className={`p-1 rounded-lg ${iconBgClasses[color]}`}>
+          <Icon className={`h-4 w-4 ${iconColorClasses[color]}`} />
+        </div>
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{title}</span>
       </div>
-      <div className={`text-2xl font-bold ${valueColorClasses[color]}`}>
+      <div className="text-2xl font-extrabold text-gray-900 dark:text-white tabular-nums">
         {value}
       </div>
       {subtitle && (

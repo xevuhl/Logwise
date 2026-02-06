@@ -498,8 +498,8 @@ function Reports({ sources, assessments, validationTests }) {
       <div className="space-y-4 animate-fade-in">
         {/* Header */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reports</h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">Select a report to generate comprehensive security coverage insights</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Reports</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Select a report to generate comprehensive security coverage insights</p>
         </div>
 
         {/* Report Tiles */}
@@ -594,7 +594,7 @@ function Reports({ sources, assessments, validationTests }) {
       </div>
 
       {/* Report Content */}
-      <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-6 print:shadow-none print:border-none">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 p-6 print:shadow-none print:border-none">
         {/* Print Header */}
         <div className="hidden print:block mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Logwise Security Report</h1>
@@ -646,28 +646,28 @@ function ReportTile({ report, metrics, onClick }) {
   
   const colorClasses = {
     blue: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      border: 'border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600',
-      icon: 'text-blue-500',
-      badge: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+      accent: 'from-cyan-500 to-blue-600',
+      iconBg: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+      icon: 'text-cyan-600 dark:text-cyan-400',
+      badge: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400'
     },
     purple: {
-      bg: 'bg-purple-50 dark:bg-purple-900/20',
-      border: 'border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600',
-      icon: 'text-purple-500',
-      badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400'
+      accent: 'from-violet-500 to-purple-600',
+      iconBg: 'bg-violet-500/10 dark:bg-violet-400/10',
+      icon: 'text-violet-600 dark:text-violet-400',
+      badge: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400'
     },
     orange: {
-      bg: 'bg-orange-50 dark:bg-orange-900/20',
-      border: 'border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600',
-      icon: 'text-orange-500',
-      badge: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400'
+      accent: 'from-amber-500 to-orange-600',
+      iconBg: 'bg-amber-500/10 dark:bg-amber-400/10',
+      icon: 'text-amber-600 dark:text-amber-400',
+      badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
     },
     green: {
-      bg: 'bg-green-50 dark:bg-green-900/20',
-      border: 'border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600',
-      icon: 'text-green-500',
-      badge: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
+      accent: 'from-emerald-500 to-green-600',
+      iconBg: 'bg-emerald-500/10 dark:bg-emerald-400/10',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
     }
   };
 
@@ -694,14 +694,15 @@ function ReportTile({ report, metrics, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`group relative p-5 rounded-lg border-2 ${colors.border} ${colors.bg} text-left transition-all hover:shadow-md`}
+      className="group relative p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/60 text-left transition-all hover:shadow-md overflow-hidden"
     >
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${colors.accent} opacity-80`} />
       <div className="flex items-start justify-between">
-        <div className={`p-2.5 rounded-lg ${colors.bg} border ${colors.border.split(' ')[0]}`}>
+        <div className={`p-2.5 rounded-lg ${colors.iconBg}`}>
           <Icon className={`h-6 w-6 ${colors.icon}`} />
         </div>
         {previewMetric && (
-          <span className={`px-2 py-1 rounded text-xs font-medium ${colors.badge}`}>
+          <span className={`px-2 py-1 rounded-md text-xs font-medium ${colors.badge}`}>
             {previewMetric.label}: {previewMetric.value}
           </span>
         )}

@@ -167,11 +167,11 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-500" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <Database className="h-5 w-5 text-cyan-500" />
             Log Source Inventory
           </h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">Manage and track your organization's log sources</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Manage and track your organization's log sources</p>
         </div>
         
         <div className="flex gap-2">
@@ -348,7 +348,7 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
       </div>
 
       {/* Sources list */}
-      <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 overflow-hidden">
         {/* Select All Header */}
         {filteredSources.length > 0 && (
           <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
@@ -478,7 +478,8 @@ function SourceRow({ source, isExpanded, isEditing, isSelected, onToggleSelect, 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onUpdate(source.id, formData);
+      const { id, createdAt, updatedAt, sortOrder, ...cleanData } = formData;
+      await onUpdate(source.id, cleanData);
       onCancelEdit();
     } finally {
       setSaving(false);
@@ -1580,30 +1581,51 @@ function Modal({ children, onClose, title, size = 'md' }) {
 }
 
 function StatCard({ title, value, subtitle, icon: Icon, color }) {
-  const colorClasses = {
-    blue: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
-    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
-    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
-    cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+  const accentClasses = {
+    blue: 'from-cyan-500 to-blue-600',
+    green: 'from-emerald-500 to-green-600',
+    red: 'from-rose-500 to-red-600',
+    purple: 'from-violet-500 to-purple-600',
+    orange: 'from-amber-500 to-orange-600',
+    yellow: 'from-yellow-500 to-amber-600',
+    cyan: 'from-cyan-500 to-teal-600',
+  };
+  const iconBgClasses = {
+    blue: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+    green: 'bg-emerald-500/10 dark:bg-emerald-400/10',
+    red: 'bg-rose-500/10 dark:bg-rose-400/10',
+    purple: 'bg-violet-500/10 dark:bg-violet-400/10',
+    orange: 'bg-amber-500/10 dark:bg-amber-400/10',
+    yellow: 'bg-yellow-500/10 dark:bg-yellow-400/10',
+    cyan: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+  };
+  const iconColorClasses = {
+    blue: 'text-cyan-600 dark:text-cyan-400',
+    green: 'text-emerald-600 dark:text-emerald-400',
+    red: 'text-rose-600 dark:text-rose-400',
+    purple: 'text-violet-600 dark:text-violet-400',
+    orange: 'text-amber-600 dark:text-amber-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    cyan: 'text-cyan-600 dark:text-cyan-400',
   };
 
   return (
-    <div className="rounded p-4 shadow-sm border bg-gradient-brand-subtle border-purple-200 dark:border-purple-800">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-600 dark:text-gray-400">{title}</p>
-          <p className="text-2xl font-bold mt-0.5 text-gradient-brand">{value}</p>
-          {subtitle && (
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{subtitle}</p>
-          )}
+    <div className="relative bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200/80 dark:border-gray-700/60 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${accentClasses[color] || accentClasses.blue} opacity-80`} />
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{title}</p>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white tabular-nums tracking-tight">{value}</p>
         </div>
-        <div className={`p-2 rounded ${colorClasses[color]}`}>
-          <Icon className="h-5 w-5" />
+        <div className={`p-2.5 rounded-lg ${iconBgClasses[color] || iconBgClasses.blue}`}>
+          <Icon className={`h-5 w-5 ${iconColorClasses[color] || iconColorClasses.blue}`} />
         </div>
       </div>
+      {subtitle && (
+        <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-700/60 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }

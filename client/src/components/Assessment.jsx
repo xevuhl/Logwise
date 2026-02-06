@@ -79,8 +79,8 @@ function Assessment({ assessments, onSave, sources }) {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Logging Maturity Assessment</h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">Evaluate your organization's logging capabilities</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Logging Maturity Assessment</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Evaluate your organization's logging capabilities</p>
         </div>
         
         {/* Progress summary */}
@@ -93,7 +93,7 @@ function Assessment({ assessments, onSave, sources }) {
       </div>
 
       {/* Progress bar */}
-      <div className="bg-white dark:bg-gray-800 rounded p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200/80 dark:border-gray-700/60">
         <div className="flex justify-between text-xs mb-1.5">
           <span className="text-gray-600 dark:text-gray-400">Overall Progress</span>
           <span className="font-medium text-gray-900 dark:text-white">
@@ -117,7 +117,7 @@ function Assessment({ assessments, onSave, sources }) {
           return (
             <div 
               key={category}
-              className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 overflow-hidden"
             >
               {/* Category header */}
               <button

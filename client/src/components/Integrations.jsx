@@ -109,11 +109,11 @@ function Integrations({ integrations, sources, onCreate, onUpdate, onDelete, onR
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-purple-500" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <Link2 className="h-5 w-5 text-violet-500" />
             Integrations
           </h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Connect to external systems to auto-discover and sync log sources
           </p>
         </div>
@@ -157,7 +157,7 @@ function Integrations({ integrations, sources, onCreate, onUpdate, onDelete, onR
       </div>
 
       {/* Available Integration Types */}
-      <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 p-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Available Connectors</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {integrationTypes.map(type => {
@@ -195,7 +195,7 @@ function Integrations({ integrations, sources, onCreate, onUpdate, onDelete, onR
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Configured Integrations</h3>
         
         {integrations.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-12 shadow-sm border border-gray-200/80 dark:border-gray-700/60 text-center">
             <Link2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <div className="text-gray-500 dark:text-gray-400 mb-2">No integrations configured</div>
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
@@ -281,25 +281,44 @@ function Integrations({ integrations, sources, onCreate, onUpdate, onDelete, onR
 }
 
 function StatCard({ title, value, subtitle, icon: Icon, color }) {
-  const colorClasses = {
-    gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
-    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-    cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+  const accentClasses = {
+    gray: 'from-gray-400 to-gray-500',
+    blue: 'from-cyan-500 to-blue-600',
+    green: 'from-emerald-500 to-green-600',
+    yellow: 'from-yellow-500 to-amber-600',
+    red: 'from-rose-500 to-red-600',
+    purple: 'from-violet-500 to-purple-600',
+    cyan: 'from-cyan-500 to-teal-600',
+  };
+  const iconBgClasses = {
+    gray: 'bg-gray-500/10 dark:bg-gray-400/10',
+    blue: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+    green: 'bg-emerald-500/10 dark:bg-emerald-400/10',
+    yellow: 'bg-yellow-500/10 dark:bg-yellow-400/10',
+    red: 'bg-rose-500/10 dark:bg-rose-400/10',
+    purple: 'bg-violet-500/10 dark:bg-violet-400/10',
+    cyan: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+  };
+  const iconColorClasses = {
+    gray: 'text-gray-600 dark:text-gray-400',
+    blue: 'text-cyan-600 dark:text-cyan-400',
+    green: 'text-emerald-600 dark:text-emerald-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    red: 'text-rose-600 dark:text-rose-400',
+    purple: 'text-violet-600 dark:text-violet-400',
+    cyan: 'text-cyan-600 dark:text-cyan-400',
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className="relative bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200/80 dark:border-gray-700/60 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${accentClasses[color] || accentClasses.blue} opacity-80`} />
       <div className="flex items-center gap-2.5">
-        <div className={`p-1.5 rounded ${colorClasses[color]}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`p-1.5 rounded-lg ${iconBgClasses[color] || iconBgClasses.blue}`}>
+          <Icon className={`h-4 w-4 ${iconColorClasses[color] || iconColorClasses.blue}`} />
         </div>
         <div>
-          <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="text-xl font-extrabold text-gray-900 dark:text-white leading-tight tabular-nums">{value}</p>
+          <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{title}</p>
           {subtitle && (
             <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>
           )}
@@ -331,7 +350,7 @@ function IntegrationCard({ integration, type, isExpanded, onToggle, onEdit, onDe
   const importedCount = sources.filter(s => s.integrationId === integration.id).length;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 overflow-hidden">
       {/* Header */}
       <div 
         className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -485,8 +504,9 @@ function IntegrationModal({ integration, preselectedType, onClose, onSave }) {
 
     setSaving(true);
     try {
+      const { id, createdAt, updatedAt, lastSyncAt, syncHistory, ...cleanData } = formData;
       await onSave({
-        ...formData,
+        ...cleanData,
         type: selectedType
       });
     } catch (err) {

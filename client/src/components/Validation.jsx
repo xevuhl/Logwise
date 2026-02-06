@@ -175,8 +175,8 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Detection Validation</h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400">Purple team testing to validate log capture and detection efficacy</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Detection Validation</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Purple team testing to validate log capture and detection efficacy</p>
         </div>
         <button
           onClick={() => setShowCampaignModal(true)}
@@ -188,7 +188,7 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
       </div>
 
       {/* Campaign selector */}
-      <div className="bg-white dark:bg-gray-800 rounded p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200/80 dark:border-gray-700/60">
         <div className="flex items-center gap-3">
           <FolderOpen className="h-4 w-4 text-gray-400" />
           <select
@@ -386,7 +386,7 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
         ))}
         
         {Object.keys(groupedTests).length === 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-12 shadow-sm border border-gray-200/80 dark:border-gray-700/60 text-center">
             <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <div className="text-gray-500 dark:text-gray-400">No tests match your filters</div>
           </div>
@@ -438,24 +438,41 @@ function Validation({ validationTests, onSaveResult, sources, campaigns, onCreat
 }
 
 function StatCard({ title, value, subtitle, icon: Icon, color }) {
-  const colorClasses = {
-    gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
-    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+  const accentClasses = {
+    gray: 'from-gray-400 to-gray-500',
+    blue: 'from-cyan-500 to-blue-600',
+    green: 'from-emerald-500 to-green-600',
+    yellow: 'from-yellow-500 to-amber-600',
+    red: 'from-rose-500 to-red-600',
+    purple: 'from-violet-500 to-purple-600',
+  };
+  const iconBgClasses = {
+    gray: 'bg-gray-500/10 dark:bg-gray-400/10',
+    blue: 'bg-cyan-500/10 dark:bg-cyan-400/10',
+    green: 'bg-emerald-500/10 dark:bg-emerald-400/10',
+    yellow: 'bg-yellow-500/10 dark:bg-yellow-400/10',
+    red: 'bg-rose-500/10 dark:bg-rose-400/10',
+    purple: 'bg-violet-500/10 dark:bg-violet-400/10',
+  };
+  const iconColorClasses = {
+    gray: 'text-gray-600 dark:text-gray-400',
+    blue: 'text-cyan-600 dark:text-cyan-400',
+    green: 'text-emerald-600 dark:text-emerald-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    red: 'text-rose-600 dark:text-rose-400',
+    purple: 'text-violet-600 dark:text-violet-400',
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className="relative bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200/80 dark:border-gray-700/60 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${accentClasses[color] || accentClasses.blue} opacity-80`} />
       <div className="flex items-center gap-2.5">
-        <div className={`p-1.5 rounded ${colorClasses[color]}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`p-1.5 rounded-lg ${iconBgClasses[color] || iconBgClasses.blue}`}>
+          <Icon className={`h-4 w-4 ${iconColorClasses[color] || iconColorClasses.blue}`} />
         </div>
         <div>
-          <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="text-xl font-extrabold text-gray-900 dark:text-white leading-tight tabular-nums">{value}</p>
+          <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{title}</p>
           {subtitle && (
             <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>
           )}
@@ -477,7 +494,7 @@ function TacticGroup({ tactic, tests, expandedTest, setExpandedTest, onRunTest, 
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/60 overflow-hidden">
       {/* Tactic header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
