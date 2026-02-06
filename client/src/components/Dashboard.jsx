@@ -171,13 +171,13 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
       {/* Middle row — Collection donut + Validation ring + Category sparklines */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Collection Status — donut chart */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200/80 dark:border-gray-700/60">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200/80 dark:border-gray-700/60">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Collection Status</h3>
             <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{stats.totalSources} sources</span>
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             {/* SVG Donut */}
             <DonutChart 
               segments={[
@@ -193,7 +193,7 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
             />
 
             {/* Legend */}
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-1.5">
               <LegendItem color="#10b981" label="Collected" count={stats.collected} total={stats.totalSources} />
               <LegendItem color="#f59e0b" label="Partial" count={stats.partial} total={stats.totalSources} />
               <LegendItem color="#3b82f6" label="Planned" count={stats.planned} total={stats.totalSources} />
@@ -204,13 +204,13 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
         </div>
 
         {/* Validation Progress — ring + stats */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200/80 dark:border-gray-700/60">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200/80 dark:border-gray-700/60">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Validation Testing</h3>
             <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{validationProgress.tested}/{validationProgress.total} tested</span>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <DonutChart 
               segments={[
                 { value: validationProgress.passed, color: '#10b981', label: 'Passed' },
@@ -223,7 +223,7 @@ function Dashboard({ stats, sources, assessments, validationTests }) {
               centerSublabel="tested"
             />
 
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-1.5">
               <LegendItem color="#10b981" label="Passed" count={validationProgress.passed} total={validationProgress.total} />
               <LegendItem color="#f59e0b" label="Partial" count={validationProgress.partial} total={validationProgress.total} />
               <LegendItem color="#ef4444" label="Failed" count={validationProgress.failed} total={validationProgress.total} />
@@ -386,8 +386,8 @@ function MetricCard({ label, value, icon: Icon, accentClass, iconBg, iconColor, 
 }
 
 function DonutChart({ segments, total, centerLabel, centerSublabel }) {
-  const size = 110;
-  const strokeWidth = 14;
+  const size = 96;
+  const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   
