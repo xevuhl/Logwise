@@ -445,6 +445,18 @@ sudo docker compose up --build
 
 ---
 
+## Security Considerations
+
+If deploying Logwise beyond local development, be aware of the following:
+
+1. **Integration credentials are encrypted at rest** — Sensitive fields (bearer tokens, client secrets, passwords, etc.) are encrypted with AES-256-GCM before being written to disk. An encryption key is auto-generated on first run and stored in `data/.encryption-key`. **Back up this key** — if it is lost, stored credentials cannot be recovered. Existing plaintext credentials are transparently migrated on first read.
+
+2. **CORS is fully open** — The server uses `cors()` with no origin restrictions, which allows requests from any domain. In production, restrict this to your specific frontend origin(s).
+
+3. **SSL verification can be disabled** — Setting `SKIP_SSL_VERIFY=true` in your `.env` disables TLS certificate validation. This is provided as a workaround for corporate proxy/SSL inspection environments but should not be used in production.
+
+---
+
 ## Contributing
 
 1. Fork the repository

@@ -1,6 +1,7 @@
 ﻿import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { encryptSensitiveFields, decryptSensitiveFields } from './crypto.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -450,7 +451,7 @@ export const targets = {
 
 export const integrations = {
   getAll() {
-    return readData('integrations.json');
+    return readData('integrations.json').map(decryptSensitiveFields);
   },
   
   getById(id) {
@@ -464,7 +465,7 @@ export const integrations = {
   },
   
   create(integration) {
-    const all = this.getAll();
+    const rawAll = readData('integrations.json');
     const newIntegration = {
       id: generateId(),
       ...integration,
@@ -474,24 +475,29 @@ export const integrations = {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    all.push(newIntegration);
-    writeData('integrations.json', all);
+    // Encrypt sensitive fields before persisting
+    const toStore = encryptSensitiveFields({ ...newIntegration });
+    rawAll.push(toStore);
+    writeData('integrations.json', rawAll);
     return newIntegration;
   },
   
   update(id, updates) {
-    const all = this.getAll();
-    const index = all.findIndex(i => i.id === id);
+    const rawAll = readData('integrations.json');
+    const index = rawAll.findIndex(i => i.id === id);
     if (index === -1) return null;
     
-    all[index] = {
-      ...all[index],
+    // Decrypt existing record, merge updates, then re-encrypt
+    const existing = decryptSensitiveFields(rawAll[index]);
+    const merged = {
+      ...existing,
       ...updates,
       id,
       updatedAt: new Date().toISOString()
     };
-    writeData('integrations.json', all);
-    return all[index];
+    rawAll[index] = encryptSensitiveFields({ ...merged });
+    writeData('integrations.json', rawAll);
+    return merged;
   },
   
   delete(id) {
@@ -502,19 +508,22 @@ export const integrations = {
   },
   
   updateSyncStatus(id, status, syncedCount = 0) {
-    const all = this.getAll();
-    const index = all.findIndex(i => i.id === id);
+    const rawAll = readData('integrations.json');
+    const index = rawAll.findIndex(i => i.id === id);
     if (index === -1) return null;
     
-    all[index] = {
-      ...all[index],
+    // Decrypt, update non-sensitive fields, re-encrypt
+    const existing = decryptSensitiveFields(rawAll[index]);
+    const merged = {
+      ...existing,
       status,
       lastSync: new Date().toISOString(),
-      syncCount: all[index].syncCount + syncedCount,
+      syncCount: existing.syncCount + syncedCount,
       updatedAt: new Date().toISOString()
     };
-    writeData('integrations.json', all);
-    return all[index];
+    rawAll[index] = encryptSensitiveFields({ ...merged });
+    writeData('integrations.json', rawAll);
+    return merged;
   }
 };
 
