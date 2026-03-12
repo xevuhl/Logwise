@@ -7,7 +7,7 @@ WORKDIR /app/client
 COPY client/package*.json ./
 
 # Install all client dependencies including devDependencies (needed for Vite build)
-RUN npm install --include=dev
+RUN NODE_ENV=development npm install
 
 # Copy client source
 COPY client/ ./
@@ -34,6 +34,11 @@ COPY --from=frontend-build /app/client/dist ./client/dist
 
 # Create data directory for SQLite persistence
 RUN mkdir -p /app/data
+
+# Create non-root user for security
+RUN addgroup -S logwise && adduser -S logwise -G logwise
+RUN chown -R logwise:logwise /app
+USER logwise
 
 # Set environment variables
 ENV NODE_ENV=production

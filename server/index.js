@@ -24,7 +24,58 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+// CORS - restrict in production, allow all in development
+if (process.env.NODE_ENV === 'production') {
+  // In production, only allow same-origin requests (frontend is served from same server)
+  app.use(cors({ origin: false }));
+} else {
+  app.use(cors());
+}
+
+// Rate limiting for API routes
+const rateLimitMap = new Map();
+app.use('/api/', (req, res, next) => {
+  const ip = req.ip;
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxRequests = 200;     // 200 requests per minute
+
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, []);
+  }
+  const timestamps = rateLimitMap.get(ip).filter(t => t > now - windowMs);
+  if (timestamps.length >= maxRequests) {
+    return res.status(429).json({ error: 'Too many requests, please try again later' });
+  }
+  timestamps.push(now);
+  rateLimitMap.set(ip, timestamps);
+  next();
+});
+
+// Clean up rate limit map periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of rateLimitMap) {
+    const valid = timestamps.filter(t => t > now - 60000);
+    if (valid.length === 0) rateLimitMap.delete(ip);
+    else rateLimitMap.set(ip, valid);
+  }
+}, 60000);
+
 app.use(express.json({ limit: '10mb' }));
 
 // Serve static files in production
