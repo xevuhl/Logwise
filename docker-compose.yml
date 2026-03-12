@@ -12,7 +12,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - LOGWISE_PASSWORD=changeme
+      - LOGWISE_ADMIN_PASSWORD=changeme
     restart: unless-stopped
 
 # Development configuration (use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up)

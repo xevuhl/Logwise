@@ -34,16 +34,25 @@ async function fetchAPI(endpoint, options = {}) {
 
 export const authAPI = {
   check: () => fetch(`${API_BASE}/auth/check`, { credentials: 'same-origin' }).then(r => r.json()),
-  login: (password) => fetch(`${API_BASE}/auth/login`, {
+  login: (username, password) => fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ username, password }),
   }).then(r => r.json().then(data => ({ ...data, ok: r.ok }))),
   logout: () => fetch(`${API_BASE}/auth/logout`, {
     method: 'POST',
     credentials: 'same-origin',
   }).then(r => r.json()),
+};
+
+// ============ USERS (admin) ============
+
+export const usersAPI = {
+  getAll: () => fetchAPI('/users'),
+  create: (user) => fetchAPI('/users', { method: 'POST', body: JSON.stringify(user) }),
+  update: (id, updates) => fetchAPI(`/users/${id}`, { method: 'PUT', body: JSON.stringify(updates) }),
+  delete: (id) => fetchAPI(`/users/${id}`, { method: 'DELETE' }),
 };
 
 // ============ LOG SOURCES ============

@@ -600,3 +600,68 @@ export const sourceActivity = {
 };
 
 console.log('Data storage initialized at:', DATA_DIR);
+
+// ============ USERS ============
+
+export const users = {
+  getAll() {
+    return readData('users.json');
+  },
+
+  getById(id) {
+    return this.getAll().find(u => u.id === id);
+  },
+
+  getByUsername(username) {
+    return this.getAll().find(u => u.username === username);
+  },
+
+  create(user) {
+    const all = this.getAll();
+    if (all.find(u => u.username === user.username)) {
+      throw new Error('Username already exists');
+    }
+    const newUser = {
+      id: generateId(),
+      username: user.username,
+      passwordHash: user.passwordHash,
+      role: user.role || 'viewer',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    all.push(newUser);
+    writeData('users.json', all);
+    return newUser;
+  },
+
+  update(id, updates) {
+    const all = this.getAll();
+    const index = all.findIndex(u => u.id === id);
+    if (index === -1) return null;
+    // Prevent username collision
+    if (updates.username && updates.username !== all[index].username) {
+      if (all.find(u => u.username === updates.username)) {
+        throw new Error('Username already exists');
+      }
+    }
+    all[index] = {
+      ...all[index],
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    writeData('users.json', all);
+    return all[index];
+  },
+
+  delete(id) {
+    let all = this.getAll();
+    all = all.filter(u => u.id !== id);
+    writeData('users.json', all);
+    return true;
+  },
+
+  count() {
+    return this.getAll().length;
+  }
+};

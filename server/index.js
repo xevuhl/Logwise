@@ -5,7 +5,7 @@ import https from 'https';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
-import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory, sourceActivity } from './db.js';
+import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory, sourceActivity, users } from './db.js';
 import { validate, validateSource, validateBulkImport, validateSourceOrder, validateTarget, validateRelationship, validateAssessment, validateBulkAssessments, validateCampaign, validateValidationTest, validateSavedView, validateIntegration } from './validate.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -79,11 +79,39 @@ setInterval(() => {
 
 app.use(express.json({ limit: '10mb' }));
 
-// ============ AUTHENTICATION ============
+// ============ AUTHENTICATION & RBAC ============
 
-const AUTH_PASSWORD = process.env.LOGWISE_PASSWORD || '';
+const VALID_ROLES = ['admin', 'editor', 'viewer'];
 const sessions = new Map();
 const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
+// Hash password with scrypt
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  const [salt, hash] = stored.split(':');
+  const testHash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(testHash, 'hex'));
+}
+
+// Create default admin if no users exist
+function ensureDefaultAdmin() {
+  if (users.count() === 0) {
+    const defaultPassword = process.env.LOGWISE_ADMIN_PASSWORD || 'admin';
+    users.create({
+      username: 'admin',
+      passwordHash: hashPassword(defaultPassword),
+      role: 'admin'
+    });
+    console.log('Created default admin user (username: admin, password: ' + (process.env.LOGWISE_ADMIN_PASSWORD ? '***' : 'admin') + ')');
+    console.log('⚠️  Change the default password immediately!');
+  }
+}
+ensureDefaultAdmin();
 
 // Clean expired sessions periodically
 setInterval(() => {
@@ -103,28 +131,36 @@ function parseCookies(cookieHeader) {
   return cookies;
 }
 
-// Login endpoint (always accessible)
+function getSession(req) {
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies.logwise_session;
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (Date.now() - session.createdAt > SESSION_MAX_AGE) {
+    sessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+// Login
 app.post('/api/auth/login', (req, res) => {
-  if (!AUTH_PASSWORD) {
-    return res.json({ success: true, message: 'No password configured' });
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
   }
-  const { password } = req.body;
-  if (!password || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Password is required' });
-  }
-  // Constant-time comparison to prevent timing attacks
-  const a = Buffer.from(password);
-  const b = Buffer.from(AUTH_PASSWORD);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    return res.status(401).json({ error: 'Invalid password' });
+  const user = users.getByUsername(username);
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
   const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, { createdAt: Date.now() });
+  sessions.set(token, { createdAt: Date.now(), userId: user.id, username: user.username, role: user.role });
   res.setHeader('Set-Cookie', `logwise_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MAX_AGE / 1000}`);
-  res.json({ success: true });
+  res.json({ success: true, user: { username: user.username, role: user.role } });
 });
 
-// Logout endpoint
+// Logout
 app.post('/api/auth/logout', (req, res) => {
   const cookies = parseCookies(req.headers.cookie);
   const token = cookies.logwise_session;
@@ -135,34 +171,31 @@ app.post('/api/auth/logout', (req, res) => {
 
 // Check auth status
 app.get('/api/auth/check', (req, res) => {
-  if (!AUTH_PASSWORD) {
-    return res.json({ authenticated: true, authRequired: false });
+  const session = getSession(req);
+  if (session) {
+    return res.json({ authenticated: true, user: { username: session.username, role: session.role } });
   }
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies.logwise_session;
-  if (token && sessions.has(token)) {
-    const session = sessions.get(token);
-    if (Date.now() - session.createdAt < SESSION_MAX_AGE) {
-      return res.json({ authenticated: true, authRequired: true });
-    }
-    sessions.delete(token);
-  }
-  res.json({ authenticated: false, authRequired: true });
+  res.json({ authenticated: false });
 });
 
-// Auth middleware — protect all other routes
+// Auth middleware — attach user to request
 function requireAuth(req, res, next) {
-  if (!AUTH_PASSWORD) return next(); // No password set, skip auth
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies.logwise_session;
-  if (token && sessions.has(token)) {
-    const session = sessions.get(token);
-    if (Date.now() - session.createdAt < SESSION_MAX_AGE) {
-      return next();
-    }
-    sessions.delete(token);
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
-  return res.status(401).json({ error: 'Authentication required' });
+  req.user = { id: session.userId, username: session.username, role: session.role };
+  next();
+}
+
+// Role middleware — require minimum role level
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
 }
 
 // Serve static files in production
@@ -174,6 +207,125 @@ if (process.env.NODE_ENV === 'production') {
 app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/auth/')) return next();
   return requireAuth(req, res, next);
+});
+
+// Viewers are read-only: block POST/PUT/DELETE on data routes (but not /auth or /users)
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth/') || req.path.startsWith('/users')) return next();
+  if (['POST', 'PUT', 'DELETE'].includes(req.method) && req.user?.role === 'viewer') {
+    return res.status(403).json({ error: 'Viewers have read-only access' });
+  }
+  next();
+});
+
+// ============ USER MANAGEMENT API (admin only) ============
+
+app.get('/api/users', requireRole('admin'), (req, res) => {
+  const allUsers = users.getAll().map(u => ({
+    id: u.id,
+    username: u.username,
+    role: u.role,
+    createdAt: u.createdAt,
+    updatedAt: u.updatedAt
+  }));
+  res.json(allUsers);
+});
+
+app.post('/api/users', requireRole('admin'), (req, res) => {
+  try {
+    const { username, password, role } = req.body;
+    if (!username || typeof username !== 'string' || username.trim().length < 2) {
+      return res.status(400).json({ error: 'Username must be at least 2 characters' });
+    }
+    if (!password || typeof password !== 'string' || password.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters' });
+    }
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ error: `Role must be one of: ${VALID_ROLES.join(', ')}` });
+    }
+    const newUser = users.create({
+      username: username.trim().toLowerCase(),
+      passwordHash: hashPassword(password),
+      role
+    });
+    auditLog.add('user_created', `User created: ${newUser.username} (${newUser.role})`, { userId: newUser.id, role });
+    res.status(201).json({ id: newUser.id, username: newUser.username, role: newUser.role, createdAt: newUser.createdAt });
+  } catch (err) {
+    if (err.message === 'Username already exists') {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+    console.error('Error creating user:', err);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+app.put('/api/users/:id', requireRole('admin'), (req, res) => {
+  try {
+    const existing = users.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const updates = {};
+    if (req.body.username) {
+      if (typeof req.body.username !== 'string' || req.body.username.trim().length < 2) {
+        return res.status(400).json({ error: 'Username must be at least 2 characters' });
+      }
+      updates.username = req.body.username.trim().toLowerCase();
+    }
+    if (req.body.password) {
+      if (typeof req.body.password !== 'string' || req.body.password.length < 4) {
+        return res.status(400).json({ error: 'Password must be at least 4 characters' });
+      }
+      updates.passwordHash = hashPassword(req.body.password);
+    }
+    if (req.body.role) {
+      if (!VALID_ROLES.includes(req.body.role)) {
+        return res.status(400).json({ error: `Role must be one of: ${VALID_ROLES.join(', ')}` });
+      }
+      // Prevent demoting the last admin
+      if (existing.role === 'admin' && req.body.role !== 'admin') {
+        const adminCount = users.getAll().filter(u => u.role === 'admin').length;
+        if (adminCount <= 1) {
+          return res.status(400).json({ error: 'Cannot demote the last admin user' });
+        }
+      }
+      updates.role = req.body.role;
+    }
+    const updated = users.update(req.params.id, updates);
+    auditLog.add('user_updated', `User updated: ${updated.username}`, { userId: updated.id });
+    res.json({ id: updated.id, username: updated.username, role: updated.role, createdAt: updated.createdAt, updatedAt: updated.updatedAt });
+  } catch (err) {
+    if (err.message === 'Username already exists') {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+    console.error('Error updating user:', err);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
+  const existing = users.getById(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  // Prevent deleting the last admin
+  if (existing.role === 'admin') {
+    const adminCount = users.getAll().filter(u => u.role === 'admin').length;
+    if (adminCount <= 1) {
+      return res.status(400).json({ error: 'Cannot delete the last admin user' });
+    }
+  }
+  // Prevent self-deletion
+  if (req.user.id === req.params.id) {
+    return res.status(400).json({ error: 'Cannot delete your own account' });
+  }
+  users.delete(req.params.id);
+  // Invalidate any sessions for the deleted user
+  for (const [token, session] of sessions) {
+    if (session.userId === req.params.id) sessions.delete(token);
+  }
+  auditLog.add('user_deleted', `User deleted: ${existing.username}`, { userId: existing.id });
+  res.status(204).send();
 });
 
 // ============ LOG SOURCES API ============

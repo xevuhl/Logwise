@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, integrationsAPI, authAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, integrationsAPI, authAPI, usersAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -12,9 +12,11 @@ import Onboarding from './components/Onboarding';
 import Relationships from './components/Relationships';
 import Targets from './components/Targets';
 import Integrations from './components/Integrations';
+import UserManagement from './components/UserManagement';
 import { assessmentQuestions } from './constants';
 
 function LoginScreen({ darkMode, onLogin }) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,11 +26,11 @@ function LoginScreen({ darkMode, onLogin }) {
     setError('');
     setLoading(true);
     try {
-      const result = await authAPI.login(password);
+      const result = await authAPI.login(username, password);
       if (result.ok && result.success) {
-        onLogin();
+        onLogin(result.user);
       } else {
-        setError(result.error || 'Invalid password');
+        setError(result.error || 'Invalid credentials');
       }
     } catch {
       setError('Failed to connect to server');
@@ -48,6 +50,19 @@ function LoginScreen({ darkMode, onLogin }) {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                placeholder="Username"
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="password">Password</label>
               <input
                 id="password"
@@ -55,15 +70,14 @@ function LoginScreen({ darkMode, onLogin }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
-                placeholder="Enter password"
-                autoFocus
+                placeholder="Password"
                 autoComplete="current-password"
               />
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
             <button
               type="submit"
-              disabled={loading || !password}
+              disabled={loading || !username || !password}
               className="w-full py-2 px-4 btn-gradient text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign In'}
@@ -79,7 +93,7 @@ function App() {
   // Auth state
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
-  const [authRequired, setAuthRequired] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); // { username, role }
 
   // Theme state
   const [darkMode, setDarkMode] = useState(() => {
@@ -109,7 +123,9 @@ function App() {
   useEffect(() => {
     authAPI.check().then(data => {
       setAuthenticated(data.authenticated);
-      setAuthRequired(data.authRequired);
+      if (data.authenticated && data.user) {
+        setCurrentUser(data.user);
+      }
       setAuthChecked(true);
     }).catch(() => {
       setAuthChecked(true);
@@ -120,7 +136,7 @@ function App() {
   useEffect(() => {
     const handler = () => {
       setAuthenticated(false);
-      setAuthRequired(true);
+      setCurrentUser(null);
     };
     window.addEventListener('logwise-auth-required', handler);
     return () => window.removeEventListener('logwise-auth-required', handler);
@@ -531,9 +547,9 @@ function App() {
     );
   }
 
-  // Show login screen if auth is required and not authenticated
-  if (authRequired && !authenticated) {
-    return <LoginScreen darkMode={darkMode} onLogin={() => { setAuthenticated(true); window.location.reload(); }} />;
+  // Show login screen if not authenticated
+  if (!authenticated) {
+    return <LoginScreen darkMode={darkMode} onLogin={(user) => { setAuthenticated(true); setCurrentUser(user); window.location.reload(); }} />;
   }
 
   if (loading) {
@@ -571,7 +587,8 @@ function App() {
         darkMode={darkMode} 
         setDarkMode={setDarkMode}
         onExport={handleExport}
-        onLogout={authRequired ? async () => { await authAPI.logout(); setAuthenticated(false); } : null}
+        currentUser={currentUser}
+        onLogout={async () => { await authAPI.logout(); setAuthenticated(false); setCurrentUser(null); }}
       />
       
       <div className="flex">
@@ -581,6 +598,7 @@ function App() {
           collapsed={sidebarCollapsed}
           setCollapsed={setSidebarCollapsed}
           stats={stats}
+          userRole={currentUser?.role}
         />
         
         <main className={`flex-1 p-4 pt-3 transition-all duration-300 ${sidebarCollapsed ? 'ml-14' : 'ml-52'}`}>
@@ -613,6 +631,7 @@ function App() {
               targets={targets}
               relationships={relationships}
               validationTests={validationTests}
+              userRole={currentUser?.role}
             />
           )}
           
@@ -671,6 +690,10 @@ function App() {
           
           {activeTab === 'audit' && (
             <AuditLog entries={auditLog} />
+          )}
+
+          {activeTab === 'users' && currentUser?.role === 'admin' && (
+            <UserManagement />
           )}
         </main>
       </div>

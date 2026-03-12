@@ -9,7 +9,8 @@ import {
   FileBarChart,
   GitMerge,
   Target,
-  Link2
+  Link2,
+  Users
 } from 'lucide-react';
 
 const navItems = [
@@ -22,9 +23,11 @@ const navItems = [
   { id: 'integrations', label: 'Integrations', icon: Link2, shortcut: '7' },
   { id: 'reports', label: 'Reports', icon: FileBarChart, shortcut: '8' },
   { id: 'audit', label: 'Audit Log', icon: History, shortcut: '9' },
+  { id: 'users', label: 'Users', icon: Users, shortcut: '0', adminOnly: true },
 ];
 
-function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
+function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats, userRole }) {
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || userRole === 'admin');
   return (
     <aside 
       className={`fixed left-0 top-[64px] h-[calc(100vh-64px)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-40 ${
@@ -45,7 +48,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, stats }) {
 
       {/* Navigation */}
       <nav className="p-2.5 space-y-1">
-        {navItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           

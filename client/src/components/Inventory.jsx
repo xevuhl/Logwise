@@ -29,7 +29,8 @@ import { statusOptions, categoryOptions, logTypeOptions, criticalityTierOptions,
 import Pagination from './Pagination';
 import ActivityTimeline from './ActivityTimeline';
 
-function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding, targets, relationships, validationTests }) {
+function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedViews, onOpenOnboarding, targets, relationships, validationTests, userRole }) {
+  const readOnly = userRole === 'viewer';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -175,13 +176,15 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
         </div>
         
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Import
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Import
+              </button>
           {onOpenOnboarding && (
             <button
               onClick={onOpenOnboarding}
@@ -198,6 +201,8 @@ function Inventory({ sources, onCreate, onUpdate, onDelete, onBulkImport, savedV
             <Plus className="h-3.5 w-3.5" />
             Quick Add
           </button>
+            </>
+          )}
         </div>
       </div>
 
