@@ -1,7 +1,7 @@
-import { FileText, Moon, Sun, Download } from 'lucide-react';
+import { FileText, Moon, Sun, Download, LogOut } from 'lucide-react';
 import logo from '../assets/Logwise-logo.png';
 
-function Header({ darkMode, setDarkMode, onExport }) {
+function Header({ darkMode, setDarkMode, onExport, onLogout }) {
   return (
     <header className="bg-white dark:bg-gray-900 sticky top-0 z-50 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="px-5 py-3 flex items-center justify-between">
@@ -32,6 +32,17 @@ function Header({ darkMode, setDarkMode, onExport }) {
           >
             {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

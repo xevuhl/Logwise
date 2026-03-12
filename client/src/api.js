@@ -7,8 +7,15 @@ async function fetchAPI(endpoint, options = {}) {
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    credentials: 'same-origin',
     ...options,
   });
+
+  if (response.status === 401) {
+    // Redirect to login
+    window.dispatchEvent(new CustomEvent('logwise-auth-required'));
+    throw new Error('Authentication required');
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -22,6 +29,22 @@ async function fetchAPI(endpoint, options = {}) {
 
   return response.json();
 }
+
+// ============ AUTH ============
+
+export const authAPI = {
+  check: () => fetch(`${API_BASE}/auth/check`, { credentials: 'same-origin' }).then(r => r.json()),
+  login: (password) => fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ password }),
+  }).then(r => r.json().then(data => ({ ...data, ok: r.ok }))),
+  logout: () => fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    credentials: 'same-origin',
+  }).then(r => r.json()),
+};
 
 // ============ LOG SOURCES ============
 

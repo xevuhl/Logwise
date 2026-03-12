@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, integrationsAPI } from './api';
+import { sourcesAPI, assessmentsAPI, auditAPI, viewsAPI, exportAPI, validationAPI, campaignsAPI, relationshipsAPI, targetsAPI, integrationsAPI, authAPI } from './api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -14,7 +14,73 @@ import Targets from './components/Targets';
 import Integrations from './components/Integrations';
 import { assessmentQuestions } from './constants';
 
+function LoginScreen({ darkMode, onLogin }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const result = await authAPI.login(password);
+      if (result.ok && result.success) {
+        onLogin();
+      } else {
+        setError(result.error || 'Invalid password');
+      }
+    } catch {
+      setError('Failed to connect to server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'dark bg-gray-900' : 'bg-gray-100'}`}>
+      <div className="w-full max-w-sm mx-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+          <div className="text-center mb-6">
+            <div className="text-3xl mb-2">&#x1F6E1;&#xFE0F;</div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: 'JetBrains Mono, monospace' }}>Logwise</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Security Log Source Tracker</p>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                placeholder="Enter password"
+                autoFocus
+                autoComplete="current-password"
+              />
+            </div>
+            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading || !password}
+              className="w-full py-2 px-4 btn-gradient text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  // Auth state
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authRequired, setAuthRequired] = useState(false);
+
   // Theme state
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('logwise-darkMode');
@@ -38,6 +104,27 @@ function App() {
   const [savedViews, setSavedViews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    authAPI.check().then(data => {
+      setAuthenticated(data.authenticated);
+      setAuthRequired(data.authRequired);
+      setAuthChecked(true);
+    }).catch(() => {
+      setAuthChecked(true);
+    });
+  }, []);
+
+  // Listen for 401 responses from API calls
+  useEffect(() => {
+    const handler = () => {
+      setAuthenticated(false);
+      setAuthRequired(true);
+    };
+    window.addEventListener('logwise-auth-required', handler);
+    return () => window.removeEventListener('logwise-auth-required', handler);
+  }, []);
 
   // Apply dark mode class
   useEffect(() => {
@@ -432,6 +519,23 @@ function App() {
     return maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
   }
 
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading Logwise...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if auth is required and not authenticated
+  if (authRequired && !authenticated) {
+    return <LoginScreen darkMode={darkMode} onLogin={() => { setAuthenticated(true); window.location.reload(); }} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -467,6 +571,7 @@ function App() {
         darkMode={darkMode} 
         setDarkMode={setDarkMode}
         onExport={handleExport}
+        onLogout={authRequired ? async () => { await authAPI.logout(); setAuthenticated(false); } : null}
       />
       
       <div className="flex">

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import https from 'https';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
 import { sources, assessments, auditLog, savedViews, validationTests, validationCampaigns, relationships, targets, integrations, integrationSyncHistory, sourceActivity } from './db.js';
@@ -78,10 +79,102 @@ setInterval(() => {
 
 app.use(express.json({ limit: '10mb' }));
 
+// ============ AUTHENTICATION ============
+
+const AUTH_PASSWORD = process.env.LOGWISE_PASSWORD || '';
+const sessions = new Map();
+const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
+// Clean expired sessions periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of sessions) {
+    if (now - session.createdAt > SESSION_MAX_AGE) sessions.delete(token);
+  }
+}, 60 * 60 * 1000);
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (!cookieHeader) return cookies;
+  cookieHeader.split(';').forEach(c => {
+    const [key, ...rest] = c.trim().split('=');
+    if (key) cookies[key] = rest.join('=');
+  });
+  return cookies;
+}
+
+// Login endpoint (always accessible)
+app.post('/api/auth/login', (req, res) => {
+  if (!AUTH_PASSWORD) {
+    return res.json({ success: true, message: 'No password configured' });
+  }
+  const { password } = req.body;
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required' });
+  }
+  // Constant-time comparison to prevent timing attacks
+  const a = Buffer.from(password);
+  const b = Buffer.from(AUTH_PASSWORD);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { createdAt: Date.now() });
+  res.setHeader('Set-Cookie', `logwise_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MAX_AGE / 1000}`);
+  res.json({ success: true });
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', (req, res) => {
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies.logwise_session;
+  if (token) sessions.delete(token);
+  res.setHeader('Set-Cookie', 'logwise_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  res.json({ success: true });
+});
+
+// Check auth status
+app.get('/api/auth/check', (req, res) => {
+  if (!AUTH_PASSWORD) {
+    return res.json({ authenticated: true, authRequired: false });
+  }
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies.logwise_session;
+  if (token && sessions.has(token)) {
+    const session = sessions.get(token);
+    if (Date.now() - session.createdAt < SESSION_MAX_AGE) {
+      return res.json({ authenticated: true, authRequired: true });
+    }
+    sessions.delete(token);
+  }
+  res.json({ authenticated: false, authRequired: true });
+});
+
+// Auth middleware — protect all other routes
+function requireAuth(req, res, next) {
+  if (!AUTH_PASSWORD) return next(); // No password set, skip auth
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies.logwise_session;
+  if (token && sessions.has(token)) {
+    const session = sessions.get(token);
+    if (Date.now() - session.createdAt < SESSION_MAX_AGE) {
+      return next();
+    }
+    sessions.delete(token);
+  }
+  return res.status(401).json({ error: 'Authentication required' });
+}
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 }
+
+// Apply auth to all /api routes except auth endpoints
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth/')) return next();
+  return requireAuth(req, res, next);
+});
 
 // ============ LOG SOURCES API ============
 
